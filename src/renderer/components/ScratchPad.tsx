@@ -15,7 +15,7 @@ export function ScratchPad({ value, onSave }: ScratchPadProps) {
     return () => window.clearTimeout(timer)
   }, [draft, value, onSave])
   return (
-    <section className="panel-card overflow-hidden">
+    <section className="panel-card shrink-0 overflow-hidden">
       <div className="flex items-center justify-between border-b border-white/[.06] px-4 py-3">
         <div className="flex items-center gap-2"><div className="icon-tile icon-tile-amber"><Feather size={14} /></div><div><h3 className="text-xs font-semibold text-parchment">Scratch Pad</h3><p className="mt-0.5 text-[9px] uppercase tracking-[.12em] text-white/35">Ephemeral thoughts, permanent save</p></div></div>
         <button title="Clear scratch pad" onClick={() => { setDraft(''); void onSave(''); setSaved(true) }} className="icon-button"><Eraser size={13} /></button>

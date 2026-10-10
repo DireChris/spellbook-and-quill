@@ -1,8 +1,6 @@
 -- Spellbook & Quill - local SQLite schema
--- Connection pragmas are applied by src/main/database.ts.
+-- The runtime enables foreign keys. sql.js persists by exporting an in-memory database to this file.
 PRAGMA foreign_keys = ON;
-PRAGMA journal_mode = WAL;
-PRAGMA synchronous = NORMAL;
 
 CREATE TABLE IF NOT EXISTS notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

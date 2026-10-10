@@ -4,7 +4,7 @@ import type { Currency } from '../../shared/types'
 interface Props { currency: Currency; itemCount: number; onOpen: () => void }
 export function VaultPeek({ currency, itemCount, onOpen }: Props) {
   return (
-    <section className="panel-card overflow-hidden">
+    <section className="panel-card shrink-0 overflow-hidden">
       <button onClick={onOpen} className="flex w-full items-center justify-between border-b border-white/[.06] px-4 py-3 text-left transition hover:bg-white/[.02]">
         <div className="flex items-center gap-2"><div className="icon-tile icon-tile-amber"><Coins size={14}/></div><div><h3 className="text-xs font-semibold text-parchment">Party vault</h3><p className="mt-0.5 text-[9px] uppercase tracking-[.12em] text-white/35">Shared ledger</p></div></div><ArrowUpRight size={13} className="text-white/30"/>
       </button>

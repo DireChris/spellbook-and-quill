@@ -4,7 +4,7 @@ import { randomInt } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type {
-  Ability, CharacterStats, Currency, DashboardData, EntityType, LootInput, LootItem, Note, NoteInput,
+  Ability, AbilityInput, CharacterStats, CharacterStatsInput, Currency, DashboardData, EntityType, LootInput, LootItem, Note, NoteInput,
   Npc, NpcInput, NpcLog, NpcLogInput, Objective, Quest, QuestInput, RollLog, SearchResult, TagInput,
 } from '../shared/types'
 
@@ -306,6 +306,70 @@ function getCharacter(): CharacterStats {
     initiative: row.initiative, speed: row.speed, proficiency: row.proficiency, passivePerception: row.passive_perception,
     passiveInsight: row.passive_insight, passiveInvestigation: row.passive_investigation,
     str: row.str, dex: row.dex, con: row.con, int: row.int, wis: row.wis, cha: row.cha }
+}
+
+/** Persist the editable field-kit stats and return the canonical stored record. */
+export function saveCharacter(input: CharacterStatsInput): CharacterStats {
+  const existing = db.prepare('SELECT id FROM characters ORDER BY id LIMIT 1').get() as { id: number } | undefined
+  if (!existing) {
+    db.prepare(`INSERT INTO characters(name,class_name,level,hp,max_hp,ac,initiative,speed,proficiency,passive_perception,passive_insight,passive_investigation,str,dex,con,int,wis,cha)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      str(input.name, 100).trim() || 'Adventurer', str(input.className, 100).trim() || 'Adventurer',
+      Math.max(1, Math.min(20, Math.trunc(num(input.level, 1)))), Math.max(0, Math.min(9999, Math.trunc(num(input.hp)))),
+      Math.max(1, Math.min(9999, Math.trunc(num(input.maxHp, 1)))), Math.max(0, Math.min(100, Math.trunc(num(input.ac)))),
+      Math.max(-50, Math.min(100, Math.trunc(num(input.initiative)))), Math.max(0, Math.min(1000, Math.trunc(num(input.speed)))),
+      Math.max(-20, Math.min(100, Math.trunc(num(input.proficiency)))), Math.max(0, Math.min(100, Math.trunc(num(input.passivePerception)))),
+      Math.max(0, Math.min(100, Math.trunc(num(input.passiveInsight)))), Math.max(0, Math.min(100, Math.trunc(num(input.passiveInvestigation)))),
+      ...[input.str, input.dex, input.con, input.int, input.wis, input.cha].map(value => Math.max(1, Math.min(40, Math.trunc(num(value, 10)))))
+    )
+  } else {
+    db.prepare(`UPDATE characters SET name=?,class_name=?,level=?,hp=?,max_hp=?,ac=?,initiative=?,speed=?,proficiency=?,passive_perception=?,passive_insight=?,passive_investigation=?,str=?,dex=?,con=?,int=?,wis=?,cha=? WHERE id=?`).run(
+      str(input.name, 100).trim() || 'Adventurer', str(input.className, 100).trim() || 'Adventurer',
+      Math.max(1, Math.min(20, Math.trunc(num(input.level, 1)))), Math.max(0, Math.min(9999, Math.trunc(num(input.hp)))),
+      Math.max(1, Math.min(9999, Math.trunc(num(input.maxHp, 1)))), Math.max(0, Math.min(100, Math.trunc(num(input.ac)))),
+      Math.max(-50, Math.min(100, Math.trunc(num(input.initiative)))), Math.max(0, Math.min(1000, Math.trunc(num(input.speed)))),
+      Math.max(-20, Math.min(100, Math.trunc(num(input.proficiency)))), Math.max(0, Math.min(100, Math.trunc(num(input.passivePerception)))),
+      Math.max(0, Math.min(100, Math.trunc(num(input.passiveInsight)))), Math.max(0, Math.min(100, Math.trunc(num(input.passiveInvestigation)))),
+      ...[input.str, input.dex, input.con, input.int, input.wis, input.cha].map(value => Math.max(1, Math.min(40, Math.trunc(num(value, 10))))), existing.id
+    )
+  }
+  return getCharacter()
+}
+
+/** Create/update ability cards and remove deleted cards as one SQLite transaction. */
+export function saveAbilities(inputs: AbilityInput[]): Ability[] {
+  if (!Array.isArray(inputs) || inputs.length > 200) throw new Error('You can save up to 200 ability cards')
+  const normalized = inputs.map(input => {
+    const name = str(input.name, 100).trim()
+    if (!name) throw new Error('Every ability card needs a name')
+    const kind = (['Attack', 'Ability', 'Spell'] as string[]).includes(input.kind) ? input.kind : 'Ability'
+    const formula = str(input.formula || '1d20', 32).replace(/\s+/g, '').toLowerCase()
+    if (!/^\d{1,2}d\d{1,3}(?:[+-]\d{1,4})?$/.test(formula)) throw new Error(`Invalid dice formula for ${name}. Use a formula such as 1d20+5.`)
+    const dice = formula.match(/^(\d{1,2})d(\d{1,3})/)
+    if (!dice || Number(dice[1]) < 1 || Number(dice[1]) > 20 || Number(dice[2]) < 2 || Number(dice[2]) > 1000) throw new Error(`Dice formula for ${name} is outside the supported limits`)
+    return { id: input.id, name, kind, formula, detail: str(input.detail, 400), uses: str(input.uses, 400) }
+  })
+  const savedIds: number[] = []
+  const tx = db.transaction(() => {
+    const existing = new Set((db.prepare('SELECT id FROM abilities').all() as Array<{id:number}>).map(row => row.id))
+    for (const item of normalized) {
+      if (item.id !== undefined && existing.has(item.id)) {
+        db.prepare('UPDATE abilities SET name=?,kind=?,detail=?,formula=?,uses=? WHERE id=?').run(item.name,item.kind,item.detail,item.formula,item.uses,item.id)
+        savedIds.push(item.id)
+      } else {
+        const result = db.prepare('INSERT INTO abilities(name,kind,detail,formula,uses) VALUES(?,?,?,?,?)').run(item.name,item.kind,item.detail,item.formula,item.uses)
+        savedIds.push(Number(result.lastInsertRowid))
+      }
+    }
+    if (savedIds.length) {
+      const placeholders = savedIds.map(() => '?').join(',')
+      db.prepare(`DELETE FROM abilities WHERE id NOT IN (${placeholders})`).run(...savedIds)
+    } else {
+      db.prepare('DELETE FROM abilities').run()
+    }
+  })
+  tx()
+  return (db.prepare("SELECT * FROM abilities ORDER BY CASE kind WHEN 'Attack' THEN 0 WHEN 'Ability' THEN 1 ELSE 2 END, name").all() as any[]).map(toAbility)
 }
 
 export async function initDatabase(): Promise<void> {

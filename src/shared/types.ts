@@ -30,6 +30,8 @@ export interface CharacterStats {
   initiative: number; speed: number; proficiency: number; passivePerception: number; passiveInsight: number;
   passiveInvestigation: number; str: number; dex: number; con: number; int: number; wis: number; cha: number
 }
+export type CharacterStatsInput = Omit<CharacterStats, 'id'>
+export interface AbilityInput { id?: number; name: string; kind: Ability['kind']; detail: string; formula: string; uses: string }
 export interface RollLog { id: number; abilityName: string; formula: string; rolls: number[]; modifier: number; total: number; detail: string; createdAt: string }
 export interface SearchResult {
   entityType: EntityType; id: number; title: string; excerpt: string; updatedAt: string; tags: string[]; meta?: string

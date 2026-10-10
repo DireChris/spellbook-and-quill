@@ -2,9 +2,9 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import {
   addLoot, closeDatabase, deleteLoot, deleteNote, deleteNpc, deleteQuest, getDashboard, initDatabase,
-  rollAbility, saveCurrency, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll,
+  rollAbility, saveAbilities, saveCharacter, saveCurrency, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll,
 } from './database'
-import type { Currency, LootInput, NoteInput, NpcInput, NpcLogInput, QuestInput, TagInput } from '../shared/types'
+import type { AbilityInput, CharacterStatsInput, Currency, LootInput, NoteInput, NpcInput, NpcLogInput, QuestInput, TagInput } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -36,6 +36,8 @@ function registerIpc() {
   handle('loot:delete', (id: number) => deleteLoot(id))
   handle('tags:save', (input: TagInput) => saveTags(input))
   handle('ability:roll', (id: number) => rollAbility(id))
+  handle('character:save', (input: CharacterStatsInput) => saveCharacter(input))
+  handle('abilities:save', (input: AbilityInput[]) => saveAbilities(input))
 }
 
 function createWindow() {
@@ -69,11 +71,16 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null })
 }
 
-app.whenReady().then(() => {
-  initDatabase()
-  registerIpc()
-  createWindow()
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
+app.whenReady().then(async () => {
+  try {
+    await initDatabase()
+    registerIpc()
+    createWindow()
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
+  } catch (error) {
+    console.error('Failed to initialise Spellbook & Quill:', error)
+    app.quit()
+  }
 })
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
 app.on('before-quit', () => closeDatabase())

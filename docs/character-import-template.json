@@ -1,0 +1,40 @@
+{
+  "format": "spellbook-and-quill-character",
+  "version": 1,
+  "character": {
+    "name": "Rowan Ashford",
+    "className": "Ranger",
+    "level": 5,
+    "hp": 34,
+    "maxHp": 42,
+    "ac": 16,
+    "initiative": 3,
+    "speed": 35,
+    "proficiency": 3,
+    "passivePerception": 15,
+    "passiveInsight": 13,
+    "passiveInvestigation": 12,
+    "str": 12,
+    "dex": 16,
+    "con": 14,
+    "int": 10,
+    "wis": 16,
+    "cha": 11
+  },
+  "abilities": [
+    {
+      "name": "Longbow",
+      "kind": "Attack",
+      "detail": "Ranged weapon attack · 150/600 ft",
+      "formula": "1d20+6",
+      "uses": "Arrow · 1d8+3 damage"
+    },
+    {
+      "name": "Hunter's Mark",
+      "kind": "Spell",
+      "detail": "1st-level · Concentration · 90 ft",
+      "formula": "1d6",
+      "uses": "Bonus action · +1d6 marked damage"
+    }
+  ]
+}

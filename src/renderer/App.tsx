@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, CheckCircle2, Feather, LoaderCircle } from 'lucide-react'
-import type { DashboardData, Note, NoteInput, Quest, QuestInput, SearchResult, TagInput } from '../shared/types'
+import type { AbilityInput, CharacterStatsInput, DashboardData, Note, NoteInput, Quest, QuestInput, SearchResult, TagInput } from '../shared/types'
 import type { PageKey } from './components/Sidebar'
 import { Sidebar } from './components/Sidebar'
 import { Topbar } from './components/Topbar'
@@ -12,6 +12,7 @@ import { NotesPage } from './pages/NotesPage'
 import { QuestsPage } from './pages/QuestsPage'
 import { VaultPage } from './pages/VaultPage'
 import { NpcsPage } from './pages/NpcsPage'
+import { CharacterSheetPage } from './pages/CharacterSheetPage'
 
 export default function App() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -163,6 +164,13 @@ export default function App() {
   const addLoot = useCallback(async (input:Parameters<typeof window.spellbook.addLoot>[0]) => { await window.spellbook.addLoot(input); await refreshData(); notify('Item added to the vault') }, [refreshData, notify])
   const deleteLoot = useCallback(async (id:number) => { await window.spellbook.deleteLoot(id); await refreshData(); notify('Item removed from the vault') }, [refreshData, notify])
   const rollAbility = useCallback(async (id:number) => { const result = await window.spellbook.rollAbility(id); await refreshData(); return result }, [refreshData])
+  const saveCharacterSheet = useCallback(async (character: CharacterStatsInput, abilities: AbilityInput[]) => {
+    const savedCharacter = await window.spellbook.saveCharacter(character)
+    const savedAbilities = await window.spellbook.saveAbilities(abilities)
+    await refreshData()
+    notify('Character sheet saved locally')
+    return { character: savedCharacter, abilities: savedAbilities }
+  }, [refreshData, notify])
   const editSearchTags = useCallback(async (result:SearchResult, tags:string[]) => {
     const normalized = await window.spellbook.saveTags({ entityType: result.entityType, entityId: result.id, tags } as TagInput)
     setSearchResults(prev => prev.map(item => item.entityType===result.entityType && item.id===result.id ? {...item,tags:normalized} : item))
@@ -202,8 +210,9 @@ export default function App() {
             {page==='quests'&&<QuestsPage quests={data.quests} openQuestId={openQuestId} onSave={saveQuest} onDelete={deleteQuest}/>}
             {page==='vault'&&<VaultPage currency={data.currency} loot={data.loot} onCurrencySave={saveCurrency} onAddLoot={addLoot} onDeleteLoot={deleteLoot}/>}
             {page==='npcs'&&<NpcsPage npcs={data.npcs} logs={data.npcLogs} openNpcId={openNpcId} onSaveNpc={saveNpc} onDeleteNpc={deleteNpc} onSaveLog={saveNpcLog}/>}
+            {page==='character'&&<CharacterSheetPage character={data.character} abilities={data.abilities} onSave={saveCharacterSheet}/>}
           </main>
-          <aside className="right-rail hidden w-[302px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-white/[.06] p-4 xl:flex">
+          <aside className="right-rail hidden min-h-0 max-h-full w-[302px] shrink-0 flex-col gap-4 overflow-y-auto overscroll-contain border-l border-white/[.06] p-4 xl:flex">
             <div className="rail-intro"><div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[.18em] text-brass-300"><Feather size={11}/> Your field kit</div><p className="mt-1 text-[10px] leading-4 text-white/35">Quick references for the other side of the screen.</p></div>
             <CharacterPanel character={data.character} abilities={data.abilities} rolls={data.rolls} onRoll={rollAbility}/>
             <VaultPeek currency={data.currency} itemCount={data.loot.reduce((n,item)=>n+item.quantity,0)} onOpen={()=>navigate('vault')}/>

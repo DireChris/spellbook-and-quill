@@ -21,7 +21,7 @@ export function CharacterPanel({ character, abilities, rolls, onRoll }: Characte
     try { setLatest(await onRoll(id)) } finally { setRolling(null) }
   }
   return (
-    <section className="panel-card overflow-hidden">
+    <section className="panel-card shrink-0 overflow-hidden">
       <button onClick={() => setCollapsed(!collapsed)} className="flex w-full items-center justify-between border-b border-white/[.06] px-4 py-3 text-left">
         <div className="flex items-center gap-2"><div className="icon-tile icon-tile-sage"><Swords size={14} /></div><div><h3 className="text-xs font-semibold text-parchment">Character Reference</h3><p className="mt-0.5 text-[9px] uppercase tracking-[.12em] text-white/35">Quick stats &amp; dice</p></div></div>
         {collapsed ? <ChevronDown size={15} className="text-white/40" /> : <ChevronUp size={15} className="text-white/40" />}

@@ -1,5 +1,5 @@
 import type {
-  Currency, DashboardData, LootInput, LootItem, Note, NoteInput, Npc, NpcInput, NpcLog, NpcLogInput,
+  Ability, AbilityInput, CharacterStats, CharacterStatsInput, Currency, DashboardData, LootInput, LootItem, Note, NoteInput, Npc, NpcInput, NpcLog, NpcLogInput,
   Quest, QuestInput, RollLog, SearchResult, TagInput,
 } from './types'
 
@@ -21,6 +21,8 @@ declare global {
       deleteLoot(id: number): Promise<boolean>
       saveTags(input: TagInput): Promise<string[]>
       rollAbility(abilityId: number): Promise<RollLog>
+      saveCharacter(input: CharacterStatsInput): Promise<CharacterStats>
+      saveAbilities(input: AbilityInput[]): Promise<Ability[]>
     }
   }
 }

@@ -115,3 +115,15 @@ The SQLite file is `spellbook-and-quill.sqlite` inside Electron's `app.getPath('
 ## Current scope
 
 This repository is a complete, runnable local application scaffold with functional core CRUD flows and a sample dataset. It is not a D&D rules engine: ability formulas are the rolls stored on each card, not a substitute for the full ruleset. Character statistics and the seeded ability list are reference data; editing those stats is an obvious extension point.
+
+## Character Sheet & JSON Import
+
+The Campaign Desk now includes a **Character Sheet** page. Edit the character identity, level, hit points, AC, initiative, speed, proficiency bonus, passive scores and all six ability scores. The same page lets you add, edit and remove the spell/ability/attack cards shown in the right-side Character Reference. Save writes these values to the local SQLite database.
+
+Use **Export JSON** to back up the character and ability cards. **Import JSON** reads a user-selected local file into the form for review; it does not update the database until you press Save. The importer understands this app's own JSON format, common Roll20-style `attributes` / `attribs` arrays or objects, and common D&D Beyond-style `stats` arrays (ability IDs 1–6) when such a JSON file is available. Data structures vary by export source, so review the imported fields before saving. There is no direct login, scraping, or bypass of either service.
+
+A starter JSON file is available at `docs/character-import-template.json`.
+
+## Right-side Field Kit Scrolling
+
+The right-side field kit has its own vertical scroll area. Character Reference, Party Vault and Scratch Pad cards retain their content height instead of shrinking, so the lower parts of the field kit can be reached by scrolling inside that rail.

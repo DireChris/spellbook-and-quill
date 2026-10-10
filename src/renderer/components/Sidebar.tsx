@@ -1,5 +1,5 @@
-import { BookMarked, BookOpenText, Compass, Gem, ScrollText, Shield, Sparkles, Users, WandSparkles } from 'lucide-react'
-export type PageKey = 'dashboard' | 'notes' | 'quests' | 'vault' | 'npcs'
+import { BookMarked, BookOpenText, Compass, Gem, ScrollText, Shield, Sparkles, Users, UserRound, WandSparkles } from 'lucide-react'
+export type PageKey = 'dashboard' | 'notes' | 'quests' | 'vault' | 'npcs' | 'character'
 interface SidebarProps { page: PageKey; onNavigate: (page: PageKey) => void; counts: { notes: number; quests: number; npcs: number; loot: number } }
 const items: Array<{ id: PageKey; label: string; icon: typeof Compass; description: string }> = [
   { id: 'dashboard', label: 'Overview', icon: Compass, description: 'Camp overview' },
@@ -7,6 +7,7 @@ const items: Array<{ id: PageKey; label: string; icon: typeof Compass; descripti
   { id: 'quests', label: 'Quest log', icon: BookOpenText, description: 'Objectives & leads' },
   { id: 'vault', label: 'Party vault', icon: Gem, description: 'Coin & treasure' },
   { id: 'npcs', label: 'NPC directory', icon: Users, description: 'People & factions' },
+  { id: 'character', label: 'Character sheet', icon: UserRound, description: 'Stats, abilities & import' },
 ]
 export function Sidebar({ page, onNavigate, counts }: SidebarProps) {
   return (

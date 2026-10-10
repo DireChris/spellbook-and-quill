@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
-  Currency, DashboardData, EntityType, LootInput, LootItem, Note, NoteInput, Npc, NpcInput, NpcLog, NpcLogInput,
+  AbilityInput, Ability, CharacterStats, CharacterStatsInput, Currency, DashboardData, EntityType, LootInput, LootItem, Note, NoteInput, Npc, NpcInput, NpcLog, NpcLogInput,
   Quest, QuestInput, RollLog, SearchResult, TagInput,
 } from '../shared/types'
 
@@ -20,6 +20,8 @@ const api = {
   deleteLoot: (id: number): Promise<boolean> => ipcRenderer.invoke('loot:delete', id),
   saveTags: (input: TagInput): Promise<string[]> => ipcRenderer.invoke('tags:save', input),
   rollAbility: (abilityId: number): Promise<RollLog> => ipcRenderer.invoke('ability:roll', abilityId),
+  saveCharacter: (input: CharacterStatsInput): Promise<CharacterStats> => ipcRenderer.invoke('character:save', input),
+  saveAbilities: (input: AbilityInput[]): Promise<Ability[]> => ipcRenderer.invoke('abilities:save', input),
 }
 
 contextBridge.exposeInMainWorld('spellbook', api)
