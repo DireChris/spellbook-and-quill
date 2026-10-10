@@ -43,7 +43,7 @@ export function NoteEditor({ note, knownTags, onTitleChange, onContentChange, on
     content: note.content || '<p></p>',
     editorProps: {
       attributes: { spellcheck: 'true', 'aria-label': 'Session note editor', class: 'prose-note outline-none min-h-[320px]' },
-      onKeyDown: (_view, event) => {
+      handleKeyDown: (_view, event) => {
         if (tagPicker && event.key === 'Escape') { setTagPicker(null); return true }
         if (tagPicker && event.key === 'Enter') {
           event.preventDefault()
