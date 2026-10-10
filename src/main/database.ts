@@ -1,13 +1,156 @@
-import Database from 'better-sqlite3'
+import initSqlJs from 'sql.js'
 import { app } from 'electron'
 import { randomInt } from 'node:crypto'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import type {
   Ability, CharacterStats, Currency, DashboardData, EntityType, LootInput, LootItem, Note, NoteInput,
   Npc, NpcInput, NpcLog, NpcLogInput, Objective, Quest, QuestInput, RollLog, SearchResult, TagInput,
 } from '../shared/types'
 
-let db: Database.Database
+/**
+ * sql.js runs SQLite in WebAssembly, so it does not compile a native addon.
+ * The adapter below intentionally mirrors the small synchronous API used by
+ * this module (prepare/get/all/run/exec/transaction). The live database is
+ * in-memory and is atomically exported to a standard SQLite file after writes.
+ */
+type SqlParam = string | number | null | Uint8Array
+type SqlRow = Record<string, any>
+type RunResult = { changes: number; lastInsertRowid: number }
+
+class SqlJsStatement {
+  constructor(private readonly owner: SqlJsDatabaseAdapter, private readonly sql: string) {}
+  get(...params: SqlParam[]): SqlRow | undefined { return this.owner.get(this.sql, params) }
+  all(...params: SqlParam[]): SqlRow[] { return this.owner.all(this.sql, params) }
+  run(...params: SqlParam[]): RunResult { return this.owner.run(this.sql, params) }
+}
+
+class SqlJsDatabaseAdapter {
+  private timer: ReturnType<typeof setTimeout> | undefined
+  private transactionDepth = 0
+  private dirty = false
+  public open = true
+
+  constructor(private readonly raw: any, private readonly filename: string) {}
+
+  exec(sql: string): void {
+    this.ensureOpen()
+    this.raw.exec(sql)
+    if (/\b(CREATE|INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|VACUUM)\b/i.test(sql)) this.markDirty()
+  }
+
+  prepare(sql: string): SqlJsStatement {
+    this.ensureOpen()
+    return new SqlJsStatement(this, sql)
+  }
+
+  get(sql: string, params: SqlParam[] = []): SqlRow | undefined {
+    this.ensureOpen()
+    const statement = this.raw.prepare(sql)
+    try {
+      if (params.length) statement.bind(params)
+      return statement.step() ? statement.getAsObject() as SqlRow : undefined
+    } finally {
+      statement.free()
+    }
+  }
+
+  all(sql: string, params: SqlParam[] = []): SqlRow[] {
+    this.ensureOpen()
+    const statement = this.raw.prepare(sql)
+    try {
+      if (params.length) statement.bind(params)
+      const rows: SqlRow[] = []
+      while (statement.step()) rows.push(statement.getAsObject() as SqlRow)
+      return rows
+    } finally {
+      statement.free()
+    }
+  }
+
+  run(sql: string, params: SqlParam[] = []): RunResult {
+    this.ensureOpen()
+    const statement = this.raw.prepare(sql)
+    let changes = 0
+    try {
+      if (params.length) statement.bind(params)
+      // A single step executes INSERT/UPDATE/DELETE statements.
+      statement.step()
+      changes = this.raw.getRowsModified() as number
+    } finally {
+      statement.free()
+    }
+    const row = this.get('SELECT last_insert_rowid() AS id')
+    this.markDirty()
+    return { changes, lastInsertRowid: Number(row?.id ?? 0) }
+  }
+
+  transaction<T extends (...args: any[]) => any>(callback: T): T {
+    const wrapped = ((...args: any[]) => {
+      this.ensureOpen()
+      this.raw.run('BEGIN IMMEDIATE')
+      this.transactionDepth += 1
+      try {
+        const result = callback(...args)
+        this.raw.run('COMMIT')
+        this.transactionDepth -= 1
+        this.schedulePersist()
+        return result
+      } catch (error) {
+        try { this.raw.run('ROLLBACK') } finally { this.transactionDepth -= 1 }
+        throw error
+      }
+    }) as T
+    return wrapped
+  }
+
+  /** Flush pending changes immediately. Used at startup and shutdown. */
+  flush(): void {
+    if (!this.open || !this.dirty) return
+    if (this.timer) clearTimeout(this.timer)
+    this.timer = undefined
+    const bytes = this.raw.export() as Uint8Array
+    const tempFilename = `${this.filename}.tmp`
+    writeFileSync(tempFilename, Buffer.from(bytes), { mode: 0o600 })
+    renameSync(tempFilename, this.filename)
+    // export() reopens the sql.js database and resets connection pragmas.
+    // Re-enable foreign keys so ON DELETE/UPDATE constraints stay enforced.
+    this.raw.run('PRAGMA foreign_keys = ON')
+    this.dirty = false
+  }
+
+  close(): void {
+    if (!this.open) return
+    this.flush()
+    if (this.timer) clearTimeout(this.timer)
+    this.timer = undefined
+    this.raw.close()
+    this.open = false
+  }
+
+  private ensureOpen(): void {
+    if (!this.open) throw new Error('The campaign database is closed')
+  }
+
+  private markDirty(): void {
+    this.dirty = true
+    this.schedulePersist()
+  }
+
+  private schedulePersist(): void {
+    if (!this.open || this.transactionDepth > 0 || !this.dirty) return
+    if (this.timer) clearTimeout(this.timer)
+    // Coalesce rapid autosaves into a single full-file export while keeping
+    // the database durable during normal use. close() always flushes eagerly.
+    this.timer = setTimeout(() => {
+      this.timer = undefined
+      try { this.flush() }
+      catch (error) { console.error('Unable to persist campaign database:', error) }
+    }, 150)
+  }
+}
+
+let db: SqlJsDatabaseAdapter
 
 const now = () => new Date().toISOString()
 const str = (value: unknown, max = 100_000) => String(value ?? '').slice(0, max)
@@ -20,8 +163,7 @@ const allowedLootKind = new Set(['Item', 'Magic Item', 'Weapon', 'Armour', 'Othe
 function schema() {
   db.exec(`
     PRAGMA foreign_keys = ON;
-    PRAGMA journal_mode = WAL;
-    PRAGMA synchronous = NORMAL;
+    -- sql.js is an in-memory SQLite engine; persistence is handled by atomic exports.
     CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL DEFAULT 'Untitled note', content TEXT NOT NULL DEFAULT '',
       kind TEXT NOT NULL DEFAULT 'session' CHECK(kind IN ('session','lore','scratch')),
@@ -166,10 +308,22 @@ function getCharacter(): CharacterStats {
     str: row.str, dex: row.dex, con: row.con, int: row.int, wis: row.wis, cha: row.cha }
 }
 
-export function initDatabase() {
+export async function initDatabase(): Promise<void> {
   const filename = join(app.getPath('userData'), 'spellbook-and-quill.sqlite')
-  db = new Database(filename)
+  mkdirSync(dirname(filename), { recursive: true })
+
+  // In development the dependency lives under the project; in packaged builds
+  // it is included under app.asar/node_modules by electron-builder.
+  const wasmDirectory = join(app.getAppPath(), 'node_modules', 'sql.js', 'dist')
+  const SQL = await initSqlJs({ locateFile: (file: string) => join(wasmDirectory, file) })
+  const raw = existsSync(filename)
+    ? new SQL.Database(new Uint8Array(readFileSync(filename)))
+    : new SQL.Database()
+
+  db = new SqlJsDatabaseAdapter(raw, filename)
   schema()
+  // Persist a new database (including schema and sample records) right away.
+  db.flush()
 }
 
 export function getDashboard(): DashboardData {
@@ -255,7 +409,7 @@ export function searchAll(query: string): SearchResult[] {
   if (!q) return []
   const pattern = `%${q.replace(/[\\%_]/g, '\\$&')}%`
   const results: SearchResult[] = []
-  const push = (item: Omit<SearchResult, 'tags'>, type: EntityType) => results.push({ ...item, entityType: type, tags: getTags(type, item.id) })
+  const push = (item: Omit<SearchResult, 'tags' | 'entityType'>, type: EntityType) => results.push({ ...item, entityType: type, tags: getTags(type, item.id) })
   ;(db.prepare(`SELECT id,title,content AS body,updated_at AS ts,'note' AS type FROM notes WHERE title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\'`).all(pattern, pattern) as any[])
     .forEach(r => push({ id:r.id,title:r.title,excerpt:plainText(r.body).slice(0,180),updatedAt:r.ts },'note'))
   ;(db.prepare(`SELECT id,name AS title,notes AS body,updated_at AS ts,status AS meta FROM quests WHERE name LIKE ? ESCAPE '\\' OR giver LIKE ? ESCAPE '\\' OR notes LIKE ? ESCAPE '\\' OR rewards LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM objectives o WHERE o.quest_id=quests.id AND o.title LIKE ? ESCAPE '\\')`).all(pattern,pattern,pattern,pattern,pattern) as any[])
