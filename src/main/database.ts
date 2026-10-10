@@ -358,16 +358,22 @@ export function saveQuest(input: QuestInput): Quest {
   if (!name) throw new Error('Quest name is required')
   const giver = str(input.giver, 180); const rewards = str(input.rewards); const notes = str(input.notes)
   const status = allowedStatus.has(input.status) ? input.status : 'In Progress'
-  const t = now(); let id = input.id
+  const t = now(); const requestedId = input.id
   const tx = db.transaction(() => {
-    if (id && db.prepare('SELECT id FROM quests WHERE id=?').get(id)) db.prepare('UPDATE quests SET name=?,giver=?,status=?,rewards=?,notes=?,updated_at=? WHERE id=?').run(name,giver,status,rewards,notes,t,id)
-    else id = Number(db.prepare('INSERT INTO quests(name,giver,status,rewards,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(name,giver,status,rewards,notes,t,t).lastInsertRowid)
-    db.prepare('DELETE FROM objectives WHERE quest_id=?').run(id)
+    let questId: number
+    if (requestedId !== undefined && db.prepare('SELECT id FROM quests WHERE id=?').get(requestedId)) {
+      questId = requestedId
+      db.prepare('UPDATE quests SET name=?,giver=?,status=?,rewards=?,notes=?,updated_at=? WHERE id=?').run(name, giver, status, rewards, notes, t, questId)
+    } else {
+      questId = Number(db.prepare('INSERT INTO quests(name,giver,status,rewards,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(name, giver, status, rewards, notes, t, t).lastInsertRowid)
+    }
+    db.prepare('DELETE FROM objectives WHERE quest_id=?').run(questId)
     const insert = db.prepare('INSERT INTO objectives(quest_id,title,done,is_side,sort_order) VALUES(?,?,?,?,?)')
-    input.objectives.slice(0, 100).filter(o => str(o.title, 300).trim()).forEach((o, index) => insert.run(id, str(o.title, 300).trim(), o.done ? 1 : 0, o.isSide ? 1 : 0, index))
+    input.objectives.slice(0, 100).filter(o => str(o.title, 300).trim()).forEach((o, index) => insert.run(questId, str(o.title, 300).trim(), o.done ? 1 : 0, o.isSide ? 1 : 0, index))
+    return questId
   })
-  tx()
-  return toQuest(db.prepare('SELECT * FROM quests WHERE id=?').get(id))
+  const questId = tx()
+  return toQuest(db.prepare('SELECT * FROM quests WHERE id=?').get(questId))
 }
 export function deleteQuest(id: number) { db.prepare('DELETE FROM quests WHERE id=?').run(num(id)); db.prepare('DELETE FROM taggings WHERE entity_type=\'quest\' AND entity_id=?').run(num(id)); return true }
 
