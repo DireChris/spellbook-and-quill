@@ -41,20 +41,22 @@ export function NoteEditor({ note, knownTags, onTitleChange, onContentChange, on
   const editor = useEditor({
     extensions: [StarterKit, Underline, Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true })],
     content: note.content || '<p></p>',
-    editorProps: { attributes: { spellcheck: 'true', 'aria-label': 'Session note editor', class: 'prose-note outline-none min-h-[320px]' } },
+    editorProps: {
+      attributes: { spellcheck: 'true', 'aria-label': 'Session note editor', class: 'prose-note outline-none min-h-[320px]' },
+      onKeyDown: (_view, event) => {
+        if (tagPicker && event.key === 'Escape') { setTagPicker(null); return true }
+        if (tagPicker && event.key === 'Enter') {
+          event.preventDefault()
+          const candidate = knownTags.filter(tag => tag.toLocaleLowerCase().includes(tagPicker.query.toLocaleLowerCase()))[0] || tagPicker.query
+          if (candidate) editorRef.current?.chain().focus().insertContentAt({ from: tagPicker.from, to: tagPicker.to }, `#${candidate} `).run()
+          setTagPicker(null)
+          return true
+        }
+        return false
+      },
+    },
     onUpdate: ({ editor }) => { onContentChange(editor.getHTML()); checkTagPrefix(editor); syncInlineTags(editor) },
     onSelectionUpdate: ({ editor }) => checkTagPrefix(editor),
-    onKeyDown: (_view, event) => {
-      if (tagPicker && event.key === 'Escape') { setTagPicker(null); return true }
-      if (tagPicker && event.key === 'Enter') {
-        event.preventDefault()
-        const candidate = knownTags.filter(tag => tag.toLocaleLowerCase().includes(tagPicker.query.toLocaleLowerCase()))[0] || tagPicker.query
-        if (candidate) editorRef.current?.chain().focus().insertContentAt({ from: tagPicker.from, to: tagPicker.to }, `#${candidate} `).run()
-        setTagPicker(null)
-        return true
-      }
-      return false
-    },
   }, [note.id])
 
   editorRef.current = editor
