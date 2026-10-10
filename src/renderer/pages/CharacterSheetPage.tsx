@@ -1,11 +1,15 @@
-import { useRef, useState } from 'react'
-import { AlertCircle, Download, FileJson, Plus, Save, Shield, Sparkles, Trash2, Upload, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { AlertCircle, Download, FileJson, Plus, Save, Shield, Sparkles, Trash2, Upload, UserRound, Users, UserPlus } from 'lucide-react'
 import type { Ability, AbilityInput, CharacterStats, CharacterStatsInput } from '../../shared/types'
 
 interface Props {
   character: CharacterStats
+  characters: CharacterStats[]
   abilities: Ability[]
   onSave: (character: CharacterStatsInput, abilities: AbilityInput[]) => Promise<{ character: CharacterStats; abilities: Ability[] }>
+  onCreateCharacter: () => Promise<void>
+  onSelectCharacter: (id: number) => Promise<void>
+  onDeleteCharacter: (id: number) => Promise<void>
 }
 
 type AnyRecord = Record<string, unknown>
@@ -18,10 +22,7 @@ const scoreKeys = [
   { key: 'cha', label: 'Charisma', ddbId: 6 },
 ] as const
 
-function fromCharacter(character: CharacterStats): CharacterStatsInput {
-  const { id: _id, ...input } = character
-  return { ...input }
-}
+function fromCharacter(character: CharacterStats): CharacterStatsInput { return { ...character } }
 function record(value: unknown): AnyRecord {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : {}
 }
@@ -100,6 +101,15 @@ function parseCharacterImport(raw: unknown, current: CharacterStatsInput): { cha
   const imported: CharacterStatsInput = {
     ...current,
     name: name || current.name,
+    species: textValue(first(character.species, character.race, root.species, root.race, current.species)),
+    background: textValue(first(character.background, root.background, current.background)),
+    alignment: textValue(first(character.alignment, root.alignment, current.alignment)),
+    backstory: textValue(first(character.backstory, character.biography, root.backstory, root.biography, current.backstory)),
+    personalityTraits: textValue(first(character.personalityTraits, character.personality_traits, current.personalityTraits)),
+    ideals: textValue(first(character.ideals, current.ideals)),
+    bonds: textValue(first(character.bonds, current.bonds)),
+    flaws: textValue(first(character.flaws, current.flaws)),
+    experience: readNumber(['experience', 'xp', 'experiencePoints'], current.experience),
     className: className || current.className,
     level: readNumber(['level', 'character_level', 'totalLevel'], levelFromClasses || current.level),
     hp: readNumber(['hp', 'currentHp', 'current_hp', 'hitPointsCurrent'], numberValue(first(hitPoints.current, hitPoints.value), current.hp)),
@@ -148,13 +158,18 @@ function NumberField({ label, value, onChange, min = 0, max = 9999 }: { label: s
   return <label className="block min-w-0"><span className="field-label mb-1.5 block">{label}</span><input className="field-input tabular-nums" type="number" min={min} max={max} value={value} onChange={event => onChange(numberValue(event.target.value, 0))} /></label>
 }
 
-export function CharacterSheetPage({ character, abilities, onSave }: Props) {
+export function CharacterSheetPage({ character, characters, abilities, onSave, onCreateCharacter, onSelectCharacter, onDeleteCharacter }: Props) {
   const [draft, setDraft] = useState<CharacterStatsInput>(() => fromCharacter(character))
   const [abilityDraft, setAbilityDraft] = useState<AbilityInput[]>(() => abilities.map(({ id, name, kind, detail, formula, uses }) => ({ id, name, kind, detail, formula, uses })))
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
+  useEffect(() => {
+    setDraft(fromCharacter(character))
+    setAbilityDraft(abilities.map(({ id, name, kind, detail, formula, uses }) => ({ id, name, kind, detail, formula, uses })))
+    setMessage(null)
+  }, [character.id])
 
   const update = <K extends keyof CharacterStatsInput>(key: K, value: CharacterStatsInput[K]) => setDraft(previous => ({ ...previous, [key]: value }))
   const updateAbility = (index: number, patch: Partial<AbilityInput>) => setAbilityDraft(previous => previous.map((ability, itemIndex) => itemIndex === index ? { ...ability, ...patch } : ability))
@@ -206,6 +221,9 @@ export function CharacterSheetPage({ character, abilities, onSave }: Props) {
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div><div className="section-eyebrow">Campaign desk / field records</div><h1 className="mt-2 flex items-center gap-3 font-display text-3xl tracking-[-.035em] text-parchment"><UserRound size={25} className="text-brass-300" /> Character sheet</h1><p className="mt-2 max-w-2xl text-xs leading-5 text-white/40">Edit core stats, passive scores and the quick-roll cards shown in your field kit. Changes stay in your local campaign database.</p></div>
           <div className="flex flex-wrap gap-2">
+            <label className="flex min-w-[180px] items-center gap-2 rounded-lg border border-white/[.08] bg-black/20 px-3 py-2"><Users size={13} className="shrink-0 text-brass-300"/><select aria-label="Select character in this campaign" className="min-w-0 flex-1 bg-transparent text-[11px] text-parchment outline-none" value={character.id} onChange={event => void onSelectCharacter(Number(event.target.value))}>{characters.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <button className="secondary-button" onClick={() => void onCreateCharacter()}><UserPlus size={13} /> New character</button>
+            <button className="icon-button hover:!text-rose-300" disabled={characters.length<=1} title={characters.length<=1 ? 'A campaign must have at least one character' : 'Delete this character'} onClick={() => { if (window.confirm(`Delete ${character.name}? Their sheet and abilities will be removed from this campaign.`)) void onDeleteCharacter(character.id) }}><Trash2 size={13}/></button>
             <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importJson(event.target.files?.[0])} />
             <button className="secondary-button" onClick={() => fileInput.current?.click()}><Upload size={13} /> Import JSON</button>
             <button className="secondary-button" onClick={exportJson}><Download size={13} /> Export JSON</button>
@@ -223,6 +241,21 @@ export function CharacterSheetPage({ character, abilities, onSave }: Props) {
             <TextField label="Character name" value={draft.name} onChange={value => update('name', value)} placeholder="Character name" />
             <TextField label="Class / multiclass" value={draft.className} onChange={value => update('className', value)} placeholder="Fighter / Wizard" />
             <NumberField label="Level" value={draft.level} onChange={value => update('level', Math.max(1, Math.min(20, value)))} min={1} max={20} />
+            <TextField label="Species / ancestry" value={draft.species} onChange={value => update('species', value)} placeholder="Human, Elf, Tiefling…" />
+            <TextField label="Background" value={draft.background} onChange={value => update('background', value)} placeholder="Hermit, Soldier, Sage…" />
+            <TextField label="Alignment" value={draft.alignment} onChange={value => update('alignment', value)} placeholder="Neutral Good" />
+            <NumberField label="Experience points" value={draft.experience} onChange={value => update('experience', Math.max(0, value))} max={99999999} />
+          </div>
+        </section>
+
+        <section className="panel-card mt-4 p-5 md:p-6">
+          <div className="mb-5"><h2 className="font-display text-lg text-parchment">Backstory &amp; personality</h2><p className="text-[10px] text-white/35">Record the person behind the numbers: their history, motivations and ties.</p></div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block md:col-span-2"><span className="field-label mb-1.5 block">Backstory</span><textarea rows={5} className="field-input resize-y" value={draft.backstory} onChange={event => update('backstory', event.target.value)} placeholder="Where they came from, what they want, and what they would rather keep hidden…" /></label>
+            <label className="block"><span className="field-label mb-1.5 block">Personality traits</span><textarea rows={3} className="field-input resize-y" value={draft.personalityTraits} onChange={event => update('personalityTraits', event.target.value)} placeholder="How they behave around others…" /></label>
+            <label className="block"><span className="field-label mb-1.5 block">Ideals</span><textarea rows={3} className="field-input resize-y" value={draft.ideals} onChange={event => update('ideals', event.target.value)} placeholder="What they believe in…" /></label>
+            <label className="block"><span className="field-label mb-1.5 block">Bonds</span><textarea rows={3} className="field-input resize-y" value={draft.bonds} onChange={event => update('bonds', event.target.value)} placeholder="People, places and causes they care about…" /></label>
+            <label className="block"><span className="field-label mb-1.5 block">Flaws</span><textarea rows={3} className="field-input resize-y" value={draft.flaws} onChange={event => update('flaws', event.target.value)} placeholder="Temptations, weaknesses, unfinished business…" /></label>
           </div>
         </section>
 

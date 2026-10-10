@@ -1,13 +1,20 @@
 import type {
-  Ability, AbilityInput, CharacterStats, CharacterStatsInput, Currency, DashboardData, LootInput, LootItem, Note, NoteInput, Npc, NpcInput, NpcLog, NpcLogInput,
-  Quest, QuestInput, RollLog, SearchResult, TagInput,
+  Ability, AbilityInput, Campaign, CampaignBackup, CampaignInput, CharacterStats, CharacterStatsInput, Currency, DashboardData, LootInput, LootItem, Note, NoteInput, Npc, NpcInput, NpcLog, NpcLogInput,
+  Quest, QuestInput, RollLog, SearchResult, TagInput, WorkspaceState,
 } from './types'
 
 declare global {
   interface Window {
     spellbook: {
       getDashboard(): Promise<DashboardData>
-      search(query: string): Promise<SearchResult[]>
+      getWorkspaceState(): Promise<WorkspaceState>
+      setActiveCampaign(id: number): Promise<WorkspaceState>
+      createCampaign(input: CampaignInput): Promise<Campaign>
+      updateCampaign(input: CampaignInput): Promise<Campaign>
+      deleteCampaign(id: number): Promise<{deleted:boolean;backupPath:string;activeCampaignId:number}>
+      exportCampaignBackup(id: number): Promise<CampaignBackup>
+      importCampaignBackup(backup: CampaignBackup): Promise<Campaign>
+      search(query: string, allCampaigns?: boolean): Promise<SearchResult[]>
       saveNote(input: NoteInput): Promise<Note>
       deleteNote(id: number): Promise<boolean>
       saveQuest(input: QuestInput): Promise<Quest>
@@ -22,6 +29,9 @@ declare global {
       saveTags(input: TagInput): Promise<string[]>
       rollAbility(abilityId: number): Promise<RollLog>
       saveCharacter(input: CharacterStatsInput): Promise<CharacterStats>
+      createCharacter(): Promise<CharacterStats>
+      selectCharacter(id: number): Promise<CharacterStats>
+      deleteCharacter(id: number): Promise<boolean>
       saveAbilities(input: AbilityInput[]): Promise<Ability[]>
     }
   }

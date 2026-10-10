@@ -1,10 +1,10 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import {
-  addLoot, closeDatabase, deleteLoot, deleteNote, deleteNpc, deleteQuest, getDashboard, initDatabase,
-  rollAbility, saveAbilities, saveCharacter, saveCurrency, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll,
+  addLoot, closeDatabase, createCampaign, createCharacter, deleteCampaign, deleteCharacter, deleteLoot, deleteNote, deleteNpc, deleteQuest, exportCampaignBackup, getDashboard, getWorkspaceState, importCampaignBackup, initDatabase,
+  rollAbility, saveAbilities, saveCharacter, saveCurrency, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll, selectCharacter, setActiveCampaign, updateCampaign,
 } from './database'
-import type { AbilityInput, CharacterStatsInput, Currency, LootInput, NoteInput, NpcInput, NpcLogInput, QuestInput, TagInput } from '../shared/types'
+import type { AbilityInput, CampaignBackup, CampaignInput, CharacterStatsInput, Currency, LootInput, NoteInput, NpcInput, NpcLogInput, QuestInput, TagInput } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -22,7 +22,14 @@ function handle(channel: string, fn: (...args: any[]) => unknown) {
 }
 function registerIpc() {
   handle('dashboard:get', () => getDashboard())
-  handle('search:all', (q: string) => searchAll(q))
+  handle('campaigns:state', () => getWorkspaceState())
+  handle('campaigns:switch', (id: number) => setActiveCampaign(id))
+  handle('campaigns:create', (input: CampaignInput) => createCampaign(input))
+  handle('campaigns:update', (input: CampaignInput) => updateCampaign(input))
+  handle('campaigns:delete', (id: number) => deleteCampaign(id))
+  handle('campaigns:export-backup', (id: number) => exportCampaignBackup(id))
+  handle('campaigns:import-backup', (backup: CampaignBackup) => importCampaignBackup(backup))
+  handle('search:all', (q: string, allCampaigns = false) => searchAll(q, allCampaigns))
   handle('note:save', (input: NoteInput) => saveNote(input))
   handle('note:delete', (id: number) => deleteNote(id))
   handle('quest:save', (input: QuestInput) => saveQuest(input))
@@ -37,6 +44,9 @@ function registerIpc() {
   handle('tags:save', (input: TagInput) => saveTags(input))
   handle('ability:roll', (id: number) => rollAbility(id))
   handle('character:save', (input: CharacterStatsInput) => saveCharacter(input))
+  handle('character:create', () => createCharacter())
+  handle('character:select', (id: number) => selectCharacter(id))
+  handle('character:delete', (id: number) => deleteCharacter(id))
   handle('abilities:save', (input: AbilityInput[]) => saveAbilities(input))
 }
 

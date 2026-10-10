@@ -13,13 +13,13 @@ export function DashboardPage({ data, onNavigate, onOpenNote, onOpenQuest }: Pro
   const totalGpValue = data.currency.pp * 10 + data.currency.gp + data.currency.sp / 10 + data.currency.cp / 100
   return (
     <div className="page-enter space-y-6 p-6 xl:p-8">
-      <div className="dashboard-hero relative overflow-hidden rounded-2xl border border-brass-400/15 p-6 md:p-8">
+      <div className={`dashboard-hero relative overflow-hidden rounded-2xl border border-brass-400/15 bg-cover bg-center p-6 md:p-8 ${data.campaign.imageData ? 'dashboard-hero-with-image' : ''}`} style={data.campaign.imageData ? { backgroundImage: `linear-gradient(90deg,rgba(10,11,15,.96) 0%,rgba(10,11,15,.84) 48%,rgba(10,11,15,.38) 100%),url("${data.campaign.imageData}")` } : undefined}>
         <div className="hero-orbit hero-orbit-one" /><div className="hero-orbit hero-orbit-two" />
         <div className="relative z-10 max-w-[600px]">
-          <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.22em] text-brass-300"><Sparkles size={13} /> Your campaign, close at hand</div>
-          <h1 className="font-display text-3xl leading-tight tracking-[-.035em] text-parchment md:text-[38px]">The story is still<br className="hidden sm:block" /> being written.</h1>
-          <p className="mt-3 max-w-[420px] text-xs leading-6 text-white/50">A quiet place for tangled clues, unfinished quests, and the little details that become legends.</p>
-          <div className="mt-6 flex flex-wrap gap-2.5"><button onClick={() => onNavigate('notes')} className="primary-button"><BookOpen size={14} /> Open journal</button><button onClick={() => onNavigate('quests')} className="secondary-button"><Compass size={14} /> View quest log</button></div>
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[.22em] text-brass-300"><Sparkles size={13} /> Active campaign <span className="text-white/20">/</span> {data.campaign.setting || data.campaign.ruleset}</div>
+          <h1 className="font-display text-3xl leading-tight tracking-[-.035em] text-parchment md:text-[38px]">{data.campaign.name}</h1>
+          <p className="mt-3 max-w-[480px] text-xs leading-6 text-white/55">{data.campaign.description || 'A quiet place for tangled clues, unfinished quests, and the little details that become legends.'}</p>
+          <div className="mt-6 flex flex-wrap gap-2.5"><button onClick={() => onNavigate('notes')} className="primary-button"><BookOpen size={14} /> Open journal</button><button onClick={() => onNavigate('quests')} className="secondary-button"><Compass size={14} /> View quest log</button><button onClick={() => onNavigate('campaigns')} className="secondary-button"><Users size={14} /> Campaigns</button></div>
         </div>
         <div className="hero-sigil" aria-hidden="true"><div className="hero-sigil-inner"><Sparkles size={34} strokeWidth={1} /></div></div>
         <div className="absolute bottom-0 right-0 h-px w-2/3 bg-gradient-to-l from-brass-400/25 to-transparent" />

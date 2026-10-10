@@ -1,14 +1,16 @@
 # Spellbook & Quill
 
-A local-first Dungeons & Dragons campaign companion for desktop. Built with Electron, React, TypeScript, Tailwind CSS, Tiptap, and SQLite (`sql.js` WebAssembly). Campaign records live in the operating system's app-data folder; the app has no account, cloud sync, analytics, or network service dependency.
+A local-first Dungeons & Dragons campaign companion for desktop. Built with Electron, React, TypeScript, Tailwind CSS, Tiptap, and SQLite (`sql.js` WebAssembly). Campaign records live in the operating system's app-data folder; the app has no account, cloud sync, analytics, or network service dependency. The campaign manager is the hub for separate adventures, each with its own journal, quests, NPCs, party vault, scratch pad, and character sheets.
 
 ## Features
 
 - **Session journal:** rich-text notes, headings, lists, bold/italic/underline/strike/code, links, undo/redo, browser/Electron spell-check, styled read-aloud callouts, autosave, dedicated tags, and inline `#tag` suggestions.
-- **Global search:** searches note content, quest names/rewards/objectives/notes, the scratch pad, NPC profiles, NPC encounter logs, loot, and tag names. Tags can be edited directly on search-result cards.
+- **Multi-campaign manager:** create, switch, edit, and delete campaigns; add optional artwork; restore portable backups; reopen the last-used campaign on startup. Deletion creates a local backup first. There is no archiving or online account feature.
+- **Global search:** searches note content, quest names/rewards/objectives/notes, the scratch pad, NPC profiles, NPC encounter logs, loot, and tag names. It searches the active campaign by default, with an option to search all campaigns. Cross-campaign results identify their campaign, and tags can be edited directly on search-result cards.
 - **Quest board:** giver/faction, status, rewards, notes, main and side objectives, objective completion, editing, and deletion.
 - **Party vault:** PP/GP/SP/CP ledger, GP-equivalent value, item quantity/value, item type, description, tags, and removal.
 - **NPC directory:** searchable name/faction/location/attitude profiles and append-only encounter logs.
+- **Character sheets:** multiple independent characters per campaign, editable attributes and background details, abilities/attacks/spells, and JSON import/export. Reusing a character in another campaign is done by exporting and importing a copy rather than linking character state.
 - **Character reference:** ability scores/modifiers, HP, AC, initiative, speed, proficiency, passive scores, clickable spell/ability/attack cards, and a roll log. Dice formulas are validated and rolled in Electron's main process with cryptographic random integers.
 - **Persistent side rail:** scratch pad with debounced autosave and collapsible character reference panel.
 - **Seed campaign:** first launch creates a small example adventure so every module has content to explore. The seed only runs when no notes exist.
@@ -50,7 +52,8 @@ The database dependency (`sql.js`) is SQLite compiled to WebAssembly. There is n
 ```text
 spellbook-and-quill/
 ├── docs/
-│   └── database-schema.sql       # Full SQLite schema
+│   ├── database-schema.sql       # SQLite schema and campaign tables
+│   └── character-import-template.json
 ├── src/
 │   ├── main/
 │   │   ├── index.ts              # BrowserWindow, IPC handlers, security policy
@@ -127,3 +130,10 @@ A starter JSON file is available at `docs/character-import-template.json`.
 ## Right-side Field Kit Scrolling
 
 The right-side field kit has its own vertical scroll area. Character Reference, Party Vault and Scratch Pad cards retain their content height instead of shrinking, so the lower parts of the field kit can be reached by scrolling inside that rail.
+
+
+## Campaign data and migration
+
+On first launch after upgrading an older single-campaign database, Spellbook & Quill creates a default campaign and assigns existing records to it in place. Existing note, quest, NPC, loot, character, tag, and roll identifiers are retained where possible; legacy party currency and scratch-pad text are copied into the new campaign-scoped tables. A backup should still be made before upgrading.
+
+Each campaign has separate records and character sheets. Character JSON export/import is the supported route for reusing a character between campaigns; linked/shared character state is intentionally not part of the current design. Campaign backups use the `.sqbackup` extension and can be restored as a new campaign. Deleting a campaign automatically writes a backup into the application's local `backups` folder before removing its records.

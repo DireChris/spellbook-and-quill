@@ -24,22 +24,31 @@ export interface Npc extends Taggable {
 export interface NpcLog extends Taggable { id: number; npcId: number | null; npcName: string; title: string; content: string; createdAt: string }
 export interface LootItem extends Taggable { id: number; name: string; kind: LootKind; quantity: number; description: string; valueGp: number; createdAt: string }
 export interface Currency { pp: number; gp: number; sp: number; cp: number }
+
+export interface Campaign {
+  id: number; name: string; description: string; setting: string; ruleset: string; imageData: string;
+  createdAt: string; updatedAt: string; lastOpenedAt: string
+}
+export interface CampaignInput { id?: number; name: string; description: string; setting: string; ruleset: string; imageData: string }
+export interface WorkspaceState { campaigns: Campaign[]; activeCampaignId: number }
 export interface Ability { id: number; name: string; kind: 'Spell' | 'Ability' | 'Attack'; detail: string; formula: string; uses: string }
 export interface CharacterStats {
-  id: number; name: string; className: string; level: number; hp: number; maxHp: number; ac: number;
+  id: number; name: string; species: string; background: string; alignment: string; backstory: string; personalityTraits: string; ideals: string; bonds: string; flaws: string;
+  className: string; level: number; experience: number; hp: number; maxHp: number; ac: number;
   initiative: number; speed: number; proficiency: number; passivePerception: number; passiveInsight: number;
   passiveInvestigation: number; str: number; dex: number; con: number; int: number; wis: number; cha: number
 }
-export type CharacterStatsInput = Omit<CharacterStats, 'id'>
+export type CharacterStatsInput = Omit<CharacterStats, 'id'> & { id?: number }
 export interface AbilityInput { id?: number; name: string; kind: Ability['kind']; detail: string; formula: string; uses: string }
 export interface RollLog { id: number; abilityName: string; formula: string; rolls: number[]; modifier: number; total: number; detail: string; createdAt: string }
 export interface SearchResult {
-  entityType: EntityType; id: number; title: string; excerpt: string; updatedAt: string; tags: string[]; meta?: string
+  entityType: EntityType; id: number; title: string; excerpt: string; updatedAt: string; tags: string[]; meta?: string; campaignId?: number; campaignName?: string
 }
 export interface DashboardData {
-  notes: Note[]; quests: Quest[]; npcs: Npc[]; npcLogs: NpcLog[]; loot: LootItem[];
+  campaign: Campaign; characters: CharacterStats[]; notes: Note[]; quests: Quest[]; npcs: Npc[]; npcLogs: NpcLog[]; loot: LootItem[];
   currency: Currency; abilities: Ability[]; character: CharacterStats; rolls: RollLog[]; scratch: string
 }
+export interface CampaignBackup { format: 'spellbook-and-quill-campaign'; version: 1; exportedAt: string; campaign: CampaignInput; content: Record<string, unknown> }
 
 export interface NoteInput { id?: number; title: string; content: string; kind?: NoteKind }
 export interface QuestInput {
@@ -49,4 +58,4 @@ export interface QuestInput {
 export interface NpcInput { id?: number; name: string; faction: string; location: string; standing: Standing; notes: string }
 export interface LootInput { name: string; kind: LootKind; quantity: number; description: string; valueGp: number }
 export interface NpcLogInput { npcId?: number | null; npcName: string; title: string; content: string }
-export interface TagInput { entityType: EntityType; entityId: number; tags: string[] }
+export interface TagInput { entityType: EntityType; entityId: number; tags: string[]; campaignId?: number }
