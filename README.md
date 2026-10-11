@@ -20,6 +20,8 @@ A local-first Dungeons & Dragons campaign companion for Windows, macOS, and Linu
 
 ## Quick start
 
+Lastest Version will have .exe installer available to download. Else below;
+
 Requirements: Node.js 22+ (recommended), npm, and a platform that Electron supports. The database uses sql.js (SQLite compiled to WebAssembly), so it does not require native C/C++ compilation tools.
 
 ```bash
