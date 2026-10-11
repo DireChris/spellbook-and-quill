@@ -1,15 +1,18 @@
 # Spellbook & Quill
 
-A local-first Dungeons & Dragons campaign companion for desktop. Built with Electron, React, TypeScript, Tailwind CSS, Tiptap, and SQLite (`sql.js` WebAssembly). Campaign records live in the operating system's app-data folder; the app has no account, cloud sync, analytics, or network service dependency. The campaign manager is the hub for separate adventures, each with its own journal, quests, NPCs, party vault, scratch pad, and character sheets.
+A local-first Dungeons & Dragons campaign companion for Windows, macOS, and Linux desktops. Built with Electron, React, TypeScript, Tailwind CSS, Tiptap, and SQLite (`sql.js` WebAssembly). Campaign records live on the local computer; there is no account, cloud sync, analytics, or required online service. The campaign manager is the hub for separate adventures, each with its own journal, quests, NPCs, party vault, scratch pad, and character sheets.
+
+> **A note on how this project is made:** Spellbook & Quill is almost entirely *vibe-coded*. Most of the implementation has been produced and iterated with AI coding assistance from natural-language requirements and feedback, rather than being traditionally hand-written line by line. It is an evolving community/personal project, not audited commercial software. It has not had comprehensive professional security, accessibility, or cross-platform QA. Expect rough edges, keep independent backups, and review/test the code before relying on it for important campaign records.
 
 ## Features
 
 - **Session journal:** rich-text notes, headings, lists, bold/italic/underline/strike/code, links, undo/redo, browser/Electron spell-check, styled read-aloud callouts, autosave, dedicated tags, and inline `#tag` suggestions.
 - **Multi-campaign manager:** create, switch, edit, and delete campaigns; add optional artwork; restore portable backups; reopen the last-used campaign on startup. Deletion creates a local backup first. There is no archiving or online account feature.
 - **Global search:** searches note content, quest names/rewards/objectives/notes, the scratch pad, NPC profiles, NPC encounter logs, loot, and tag names. It searches the active campaign by default, with an option to search all campaigns. Cross-campaign results identify their campaign, and tags can be edited directly on search-result cards.
+- **Word campaign archive:** export the active campaign to a formatted `.docx` document through a native Save As dialog. It includes the journal, quests/objectives, NPC profiles and conversation ledger, currency and loot, character sheets and abilities, scratch pad, tags, and roll history. Campaign/NPC artwork is embedded where the image format is supported. This is a readable/offboarding archive, not a restorable app backup.
 - **Quest board:** giver/faction, status, rewards, notes, main and side objectives, objective completion, editing, and deletion.
 - **Party vault:** PP/GP/SP/CP ledger, GP-equivalent value, item quantity/value, item type, description, tags, and removal.
-- **NPC directory:** searchable name/faction/location/attitude profiles and append-only encounter logs.
+- **NPC directory:** searchable name/faction/location/attitude profiles, optional portraits, editable profile details, and an editable conversation ledger.
 - **Character sheets:** multiple independent characters per campaign, editable attributes and background details, abilities/attacks/spells, and JSON import/export. Reusing a character in another campaign is done by exporting and importing a copy rather than linking character state.
 - **Character reference:** ability scores/modifiers, HP, AC, initiative, speed, proficiency, passive scores, clickable spell/ability/attack cards, and a roll log. Dice formulas are validated and rolled in Electron's main process with cryptographic random integers.
 - **Persistent side rail:** scratch pad with debounced autosave and collapsible character reference panel.
@@ -57,7 +60,8 @@ spellbook-and-quill/
 ├── src/
 │   ├── main/
 │   │   ├── index.ts              # BrowserWindow, IPC handlers, security policy
-│   │   └── database.ts           # Schema creation, seed data, CRUD, search, dice rolls
+│   │   ├── database.ts           # Schema creation, seed data, CRUD, search, dice rolls
+│   │   └── campaign-word-export.ts # Formatted Word archive generation
 │   ├── preload/
 │   │   └── index.ts              # Narrow, typed contextBridge API
 │   ├── renderer/
@@ -104,7 +108,34 @@ The canonical SQL definition is in [`docs/database-schema.sql`](docs/database-sc
 | `tags`, `taggings` | Shared tags across note, quest, scratch, NPC, NPC log, and loot records |
 | `characters`, `abilities`, `roll_log` | Character reference, rollable formulas, and roll history |
 
-The SQLite file is `spellbook-and-quill.sqlite` inside Electron's `app.getPath('userData')` directory. Typical locations are `%APPDATA%/spellbook-and-quill/` on Windows, `~/Library/Application Support/spellbook-and-quill/` on macOS, and `~/.config/spellbook-and-quill/` on Linux (the exact folder name is managed by Electron and may vary by platform). Back up the database with the app closed; the app flushes pending changes and closes its in-memory database on shutdown.
+The SQLite file is `spellbook-and-quill.sqlite` inside Electron's `app.getPath('userData')` directory. Typical locations are `%APPDATA%/spellbook-and-quill/` on Windows, `~/Library/Application Support/spellbook-and-quill/` on macOS, and `~/.config/spellbook-and-quill/` on Linux (the exact folder name is managed by Electron and may vary by platform). Back up the database with the app closed; the app flushes pending changes and closes its in-memory database on shutdown. On Windows, use **Win + R** and enter `%APPDATA%` to open the Roaming AppData folder, then look for the `spellbook-and-quill` application-data directory.
+
+## Quick reference (using the app)
+
+- **Choose a campaign:** use the campaign selector at the top of the left sidebar. The last-used campaign opens automatically at startup. Use **Manage campaigns** to create, edit, switch, export, restore, or delete campaigns.
+- **Create notes:** open **Session notes**, create a note, then type in the editor. Formatting controls are above the editor; use `Ctrl+T` to focus the note tag field, or type `#` in the editor to get tag suggestions. Notes autosave locally.
+- **Track quests:** use **Quest log** to create quests and objectives. Mark objectives complete from the quest tracker while playing.
+- **Maintain NPC records:** open **NPC directory** to create/edit profiles, add portraits, and maintain a conversation ledger.
+- **Track party property:** open **Party vault** for currency and loot. Expand an item to read its full description and edit it.
+- **Maintain characters:** open **Character sheets** to edit stats, background, personality details, and ability/attack/spell cards. Use JSON export/import to move a character between campaigns.
+- **Export a Word archive:** from the active campaign's **Overview** page, click **Export Word**. Choose the destination and filename in the Save dialog. The `.docx` is designed for reading, printing, sharing, or keeping an extra archive. It does not replace a `.sqbackup`.
+- **Make a restorable campaign backup:** open **Manage campaigns** and use **Export backup** for the campaign. Restore a `.sqbackup` from the same screen; it is imported as a new campaign, not merged into an existing one.
+
+### Where files are stored
+
+**Automatic backup made when deleting a campaign (Windows):** typically found in:
+
+```text
+%APPDATA%\spellbook-and-quill\backups\
+```
+
+The file extension is `.sqbackup`. If that exact folder isn't present on your computer, open `%APPDATA%` with **Win + R** and search within it for `spellbook-and-quill.sqlite` or a `backups` folder; Electron's resolved application-data folder name can vary by packaging/runtime details. You can paste a folder path into File Explorer's address bar.
+
+**Database:** `spellbook-and-quill.sqlite` lives in the same application-data directory, one level above `backups`. Avoid editing or replacing it while the application is open. Copy it only with the app closed, or use the app's own backup/export options.
+
+**Manual `.sqbackup` exports:** these are downloaded through the campaign manager and normally land in the user's Downloads folder unless the operating system asks where to save them. **Word `.docx` exports:** these are saved to the path you pick in the native Save As dialog.
+
+**Important difference:** a `.sqbackup` is intended to restore a campaign back into Spellbook & Quill. A `.docx` is a human-readable archive of the current campaign's content; it is not an importable database backup. Keep both if you want an easy-to-read record and a recovery copy.
 
 ## Security and design notes
 
@@ -117,7 +148,15 @@ The SQLite file is `spellbook-and-quill.sqlite` inside Electron's `app.getPath('
 
 ## Current scope
 
-This repository is a complete, runnable local application scaffold with functional core CRUD flows and a sample dataset. It is not a D&D rules engine: ability formulas are the rolls stored on each card, not a substitute for the full ruleset. Character statistics and the seeded ability list are reference data; editing those stats is an obvious extension point.
+This is an evolving, AI-assisted local desktop application with the core campaign record flows and a sample dataset. It is not a D&D rules engine: ability formulas are the rolls stored on each card, not a substitute for the full ruleset. Character stats and calculated rolls are only as accurate as the values and formulas entered by the user.
+
+## Word campaign archive export
+
+From the active campaign **Overview** dashboard, choose **Export Word**. A native Save As dialog lets you choose a destination and filename. The `.docx` is intended to be a readable, formatted archive for printing, sharing, leaving the app, or keeping a second reference copy. It includes the campaign overview; session journal and lore entries; quests, rewards, statuses and objectives; NPC profiles and conversation ledger; party currency and loot descriptions; character stats, backstory and ability cards; scratch-pad notes; tags; and roll history. Campaign artwork and NPC portraits are embedded when stored in a Word-compatible JPEG or PNG format.
+
+A Word archive is **not** a restorable Spellbook & Quill backup. For migration back into the app, use **Manage campaigns → Export backup** to create a `.sqbackup` file. For extra safety, keep both exports.
+
+The Word generator uses the `docx` JavaScript library in the Electron main process. The renderer only requests an export through the typed preload bridge; the user selects the destination via Electron's native file dialog.
 
 ## Character Sheet & JSON Import
 

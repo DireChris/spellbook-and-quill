@@ -253,6 +253,14 @@ export default function App() {
     notify(result.backupPath ? 'Campaign deleted. A safety backup was saved in the app-data backups folder.' : 'Campaign deleted.')
   }, [notify, page])
   const exportCampaignBackup = useCallback(async (id: number): Promise<CampaignBackup> => window.spellbook.exportCampaignBackup(id), [])
+  const exportCurrentCampaignWord = useCallback(async () => {
+    try {
+      const result = await window.spellbook.exportCampaignWord()
+      if (!result.cancelled) notify(`Word archive saved to ${result.filePath}`)
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not export the Word archive', true)
+    }
+  }, [notify])
   const importCampaignBackup = useCallback(async (backup: CampaignBackup) => {
     await window.spellbook.importCampaignBackup(backup)
     const [fresh, freshWorkspace] = await Promise.all([window.spellbook.getDashboard(), window.spellbook.getWorkspaceState()])
@@ -310,7 +318,7 @@ export default function App() {
         <Topbar query={searchQuery} onQueryChange={setSearchQuery} results={searchResults} searching={searching} onOpenResult={result => { void openResult(result).catch(error => notify(error instanceof Error ? error.message : 'Could not open search result', true)) }} onResultTags={editSearchTags} allCampaigns={allCampaignsSearch} onAllCampaignsChange={setAllCampaignsSearch}/>
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-            {page === 'dashboard' && <div className="h-full min-h-0 overflow-y-auto"><DashboardPage data={data} onNavigate={navigate} onOpenNote={note => { navigate('notes'); selectNote(note) }} onOpenQuest={quest => { setOpenQuestId(quest.id); navigate('quests') }}/></div>}
+            {page === 'dashboard' && <div className="h-full min-h-0 overflow-y-auto"><DashboardPage data={data} onNavigate={navigate} onOpenNote={note => { navigate('notes'); selectNote(note) }} onOpenQuest={quest => { setOpenQuestId(quest.id); navigate('quests') }} onExportWord={() => { void exportCurrentCampaignWord() }}/></div>}
             {page === 'campaigns' && <CampaignsPage campaigns={workspace.campaigns} activeCampaignId={workspace.activeCampaignId} onSwitch={async id => { await switchCampaign(id) }} onCreate={createCampaign} onUpdate={updateCampaign} onDelete={deleteCampaign} onExportBackup={exportCampaignBackup} onImportBackup={importCampaignBackup}/>}
             {page === 'notes' && <NotesPage notes={data.notes} selectedNote={selectedNote} knownTags={knownTags} saving={savingNote} onSelect={note => { selectNote(note) }} onCreate={() => void createNote().catch(() => notify('Could not create a note', true))} onTitleChange={handleTitleChange} onContentChange={handleContentChange} onTagsChange={handleNoteTags} onDelete={() => void deleteCurrentNote()} onSaveNow={() => void saveNoteNow()}/>}
             {page === 'quests' && <QuestsPage quests={data.quests} openQuestId={openQuestId} onSave={saveQuest} onDelete={deleteQuest}/>}

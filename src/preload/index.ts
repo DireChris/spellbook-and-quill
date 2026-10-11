@@ -12,6 +12,7 @@ const api = {
   updateCampaign: (input: CampaignInput): Promise<Campaign> => ipcRenderer.invoke('campaigns:update', input),
   deleteCampaign: (id: number): Promise<{deleted:boolean;backupPath:string;activeCampaignId:number}> => ipcRenderer.invoke('campaigns:delete', id),
   exportCampaignBackup: (id: number): Promise<CampaignBackup> => ipcRenderer.invoke('campaigns:export-backup', id),
+  exportCampaignWord: (): Promise<{ cancelled: boolean; filePath?: string }> => ipcRenderer.invoke('campaigns:export-word'),
   importCampaignBackup: (backup: CampaignBackup): Promise<Campaign> => ipcRenderer.invoke('campaigns:import-backup', backup),
   search: (query: string, allCampaigns = false): Promise<SearchResult[]> => ipcRenderer.invoke('search:all', query, allCampaigns),
   saveNote: (input: NoteInput): Promise<Note> => ipcRenderer.invoke('note:save', input),

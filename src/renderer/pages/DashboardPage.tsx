@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
-import { ArrowUpRight, BookOpen, ChevronRight, Clock3, Compass, Gem, MapPinned, Sparkles, Users } from 'lucide-react'
+import { ArrowUpRight, BookOpen, ChevronRight, Clock3, Compass, Download, Gem, MapPinned, Sparkles, Users } from 'lucide-react'
 import type { DashboardData, Note, Quest } from '../../shared/types'
 import type { PageKey } from '../components/Sidebar'
 
-interface Props { data: DashboardData; onNavigate: (page: PageKey) => void; onOpenNote: (note: Note) => void; onOpenQuest: (quest: Quest) => void }
+interface Props { data: DashboardData; onNavigate: (page: PageKey) => void; onOpenNote: (note: Note) => void; onOpenQuest: (quest: Quest) => void; onExportWord: () => void }
 const excerpt = (content: string) => content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 const dateLabel = (date: string) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(date))
-export function DashboardPage({ data, onNavigate, onOpenNote, onOpenQuest }: Props) {
+export function DashboardPage({ data, onNavigate, onOpenNote, onOpenQuest, onExportWord }: Props) {
   const activeQuests = data.quests.filter(q => q.status === 'In Progress').length
   const completedObjectives = data.quests.reduce((sum, q) => sum + q.objectives.filter(o => o.done).length, 0)
   const totalObjectives = data.quests.reduce((sum, q) => sum + q.objectives.length, 0)
@@ -21,7 +21,7 @@ export function DashboardPage({ data, onNavigate, onOpenNote, onOpenQuest }: Pro
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[.22em] text-brass-300"><Sparkles size={13} /> Active campaign <span className="text-white/20">/</span> {data.campaign.setting || data.campaign.ruleset}</div>
           <h1 className="font-display text-3xl leading-tight tracking-[-.035em] text-parchment md:text-[38px]">{data.campaign.name}</h1>
           <p className="mt-3 max-w-[480px] text-xs leading-6 text-white/55">{data.campaign.description || 'A quiet place for tangled clues, unfinished quests, and the little details that become legends.'}</p>
-          <div className="mt-6 flex flex-wrap gap-2.5"><button onClick={() => onNavigate('notes')} className="primary-button"><BookOpen size={14} /> Open journal</button><button onClick={() => onNavigate('quests')} className="secondary-button"><Compass size={14} /> View quest log</button><button onClick={() => onNavigate('campaigns')} className="secondary-button"><Users size={14} /> Campaigns</button></div>
+          <div className="mt-6 flex flex-wrap gap-2.5"><button onClick={() => onNavigate('notes')} className="primary-button"><BookOpen size={14} /> Open journal</button><button onClick={() => onNavigate('quests')} className="secondary-button"><Compass size={14} /> View quest log</button><button onClick={() => onNavigate('campaigns')} className="secondary-button"><Users size={14} /> Campaigns</button><button onClick={onExportWord} className="secondary-button"><Download size={14} /> Export Word</button></div>
         </div>
         <div className="hero-sigil" aria-hidden="true"><div className="hero-sigil-inner"><Sparkles size={34} strokeWidth={1} /></div></div>
         <div className="absolute bottom-0 right-0 h-px w-2/3 bg-gradient-to-l from-brass-400/25 to-transparent" />

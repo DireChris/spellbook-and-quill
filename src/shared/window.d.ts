@@ -13,6 +13,7 @@ declare global {
       updateCampaign(input: CampaignInput): Promise<Campaign>
       deleteCampaign(id: number): Promise<{deleted:boolean;backupPath:string;activeCampaignId:number}>
       exportCampaignBackup(id: number): Promise<CampaignBackup>
+      exportCampaignWord(): Promise<{ cancelled: boolean; filePath?: string }>
       importCampaignBackup(backup: CampaignBackup): Promise<Campaign>
       search(query: string, allCampaigns?: boolean): Promise<SearchResult[]>
       saveNote(input: NoteInput): Promise<Note>

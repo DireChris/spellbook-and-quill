@@ -1,5 +1,7 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { buildCampaignWordDocument, campaignWordFilename } from './campaign-word-export'
 import {
   addLoot, closeDatabase, createCampaign, createCharacter, deleteCampaign, deleteCharacter, deleteLoot, deleteNote, deleteNpc, deleteQuest, exportCampaignBackup, getDashboard, getWorkspaceState, importCampaignBackup, initDatabase,
   rollAbility, saveAbilities, saveCharacter, saveCurrency, saveLoot, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll, selectCharacter, setActiveCampaign, updateCampaign,
@@ -28,6 +30,24 @@ function registerIpc() {
   handle('campaigns:update', (input: CampaignInput) => updateCampaign(input))
   handle('campaigns:delete', (id: number) => deleteCampaign(id))
   handle('campaigns:export-backup', (id: number) => exportCampaignBackup(id))
+  handle('campaigns:export-word', async () => {
+    const workspace = getWorkspaceState()
+    const backup = exportCampaignBackup(workspace.activeCampaignId)
+    const defaultPath = join(app.getPath('documents'), campaignWordFilename(backup.campaign.name))
+    const options = {
+      title: 'Export current campaign to Word',
+      defaultPath,
+      buttonLabel: 'Export Word document',
+      filters: [{ name: 'Microsoft Word document', extensions: ['docx'] }],
+    }
+    const result = mainWindow
+      ? await dialog.showSaveDialog(mainWindow, options)
+      : await dialog.showSaveDialog(options)
+    if (result.canceled || !result.filePath) return { cancelled: true as const }
+    const buffer = await buildCampaignWordDocument(backup)
+    await writeFile(result.filePath, buffer)
+    return { cancelled: false as const, filePath: result.filePath }
+  })
   handle('campaigns:import-backup', (backup: CampaignBackup) => importCampaignBackup(backup))
   handle('search:all', (q: string, allCampaigns = false) => searchAll(q, allCampaigns))
   handle('note:save', (input: NoteInput) => saveNote(input))
