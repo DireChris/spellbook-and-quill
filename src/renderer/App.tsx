@@ -199,10 +199,10 @@ export default function App() {
   const deleteQuest = useCallback(async (id: number) => { await window.spellbook.deleteQuest(id); await refreshData(); notify('Quest removed') }, [refreshData, notify])
   const saveNpc = useCallback(async (input: Parameters<typeof window.spellbook.saveNpc>[0]) => { const saved = await window.spellbook.saveNpc(input); await refreshData(); notify('NPC record saved'); return saved }, [refreshData, notify])
   const deleteNpc = useCallback(async (id: number) => { await window.spellbook.deleteNpc(id); await refreshData(); notify('NPC removed') }, [refreshData, notify])
-  const saveNpcLog = useCallback(async (input: Parameters<typeof window.spellbook.saveNpcLog>[0]) => { await window.spellbook.saveNpcLog(input); await refreshData(); notify('Encounter added to the log') }, [refreshData, notify])
+  const saveNpcLog = useCallback(async (input: Parameters<typeof window.spellbook.saveNpcLog>[0]) => { await window.spellbook.saveNpcLog(input); await refreshData(); notify(input.id ? 'Conversation entry updated' : 'Encounter added to the log') }, [refreshData, notify])
   const saveScratch = useCallback(async (content: string) => { await window.spellbook.saveScratch(content) }, [])
   const saveCurrency = useCallback(async (currency: DashboardData['currency']) => { await window.spellbook.saveCurrency(currency); await refreshData(); notify('Currency ledger updated') }, [refreshData, notify])
-  const addLoot = useCallback(async (input: Parameters<typeof window.spellbook.addLoot>[0]) => { await window.spellbook.addLoot(input); await refreshData(); notify('Item added to the vault') }, [refreshData, notify])
+  const saveLoot = useCallback(async (input: Parameters<typeof window.spellbook.saveLoot>[0]) => { await window.spellbook.saveLoot(input); await refreshData(); notify(input.id ? 'Loot details updated' : 'Item added to the vault') }, [refreshData, notify])
   const deleteLoot = useCallback(async (id: number) => { await window.spellbook.deleteLoot(id); await refreshData(); notify('Item removed from the vault') }, [refreshData, notify])
   const rollAbility = useCallback(async (id: number) => { const result = await window.spellbook.rollAbility(id); await refreshData(); return result }, [refreshData])
 
@@ -314,7 +314,7 @@ export default function App() {
             {page === 'campaigns' && <CampaignsPage campaigns={workspace.campaigns} activeCampaignId={workspace.activeCampaignId} onSwitch={async id => { await switchCampaign(id) }} onCreate={createCampaign} onUpdate={updateCampaign} onDelete={deleteCampaign} onExportBackup={exportCampaignBackup} onImportBackup={importCampaignBackup}/>}
             {page === 'notes' && <NotesPage notes={data.notes} selectedNote={selectedNote} knownTags={knownTags} saving={savingNote} onSelect={note => { selectNote(note) }} onCreate={() => void createNote().catch(() => notify('Could not create a note', true))} onTitleChange={handleTitleChange} onContentChange={handleContentChange} onTagsChange={handleNoteTags} onDelete={() => void deleteCurrentNote()} onSaveNow={() => void saveNoteNow()}/>}
             {page === 'quests' && <QuestsPage quests={data.quests} openQuestId={openQuestId} onSave={saveQuest} onDelete={deleteQuest}/>}
-            {page === 'vault' && <VaultPage currency={data.currency} loot={data.loot} onCurrencySave={saveCurrency} onAddLoot={addLoot} onDeleteLoot={deleteLoot}/>}
+            {page === 'vault' && <VaultPage currency={data.currency} loot={data.loot} onCurrencySave={saveCurrency} onSaveLoot={saveLoot} onDeleteLoot={deleteLoot}/>}
             {page === 'npcs' && <NpcsPage npcs={data.npcs} logs={data.npcLogs} openNpcId={openNpcId} onSaveNpc={saveNpc} onDeleteNpc={deleteNpc} onSaveLog={saveNpcLog}/>}
             {page === 'character' && <CharacterSheetPage character={data.character} characters={data.characters} abilities={data.abilities} onSave={saveCharacterSheet} onCreateCharacter={createCharacter} onSelectCharacter={selectCharacter} onDeleteCharacter={deleteCharacter}/>}
           </main>

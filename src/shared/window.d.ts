@@ -25,6 +25,7 @@ declare global {
       saveScratch(content: string): Promise<string>
       saveCurrency(currency: Currency): Promise<Currency>
       addLoot(input: LootInput): Promise<LootItem>
+      saveLoot(input: LootInput): Promise<LootItem>
       deleteLoot(id: number): Promise<boolean>
       saveTags(input: TagInput): Promise<string[]>
       rollAbility(abilityId: number): Promise<RollLog>

@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import {
   addLoot, closeDatabase, createCampaign, createCharacter, deleteCampaign, deleteCharacter, deleteLoot, deleteNote, deleteNpc, deleteQuest, exportCampaignBackup, getDashboard, getWorkspaceState, importCampaignBackup, initDatabase,
-  rollAbility, saveAbilities, saveCharacter, saveCurrency, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll, selectCharacter, setActiveCampaign, updateCampaign,
+  rollAbility, saveAbilities, saveCharacter, saveCurrency, saveLoot, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll, selectCharacter, setActiveCampaign, updateCampaign,
 } from './database'
 import type { AbilityInput, CampaignBackup, CampaignInput, CharacterStatsInput, Currency, LootInput, NoteInput, NpcInput, NpcLogInput, QuestInput, TagInput } from '../shared/types'
 
@@ -40,6 +40,7 @@ function registerIpc() {
   handle('scratch:save', (content: string) => saveScratch(content))
   handle('currency:save', (input: Currency) => saveCurrency(input))
   handle('loot:add', (input: LootInput) => addLoot(input))
+  handle('loot:save', (input: LootInput) => saveLoot(input))
   handle('loot:delete', (id: number) => deleteLoot(id))
   handle('tags:save', (input: TagInput) => saveTags(input))
   handle('ability:roll', (id: number) => rollAbility(id))

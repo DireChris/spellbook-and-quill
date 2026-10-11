@@ -56,6 +56,6 @@ export interface QuestInput {
   objectives: Array<{ id?: number; title: string; done: boolean; isSide: boolean }>
 }
 export interface NpcInput { id?: number; name: string; faction: string; location: string; standing: Standing; notes: string }
-export interface LootInput { name: string; kind: LootKind; quantity: number; description: string; valueGp: number }
-export interface NpcLogInput { npcId?: number | null; npcName: string; title: string; content: string }
+export interface LootInput { id?: number; name: string; kind: LootKind; quantity: number; description: string; valueGp: number }
+export interface NpcLogInput { id?: number; npcId?: number | null; npcName: string; title: string; content: string }
 export interface TagInput { entityType: EntityType; entityId: number; tags: string[]; campaignId?: number }

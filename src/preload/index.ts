@@ -24,6 +24,7 @@ const api = {
   saveScratch: (content: string): Promise<string> => ipcRenderer.invoke('scratch:save', content),
   saveCurrency: (currency: Currency): Promise<Currency> => ipcRenderer.invoke('currency:save', currency),
   addLoot: (input: LootInput): Promise<LootItem> => ipcRenderer.invoke('loot:add', input),
+  saveLoot: (input: LootInput): Promise<LootItem> => ipcRenderer.invoke('loot:save', input),
   deleteLoot: (id: number): Promise<boolean> => ipcRenderer.invoke('loot:delete', id),
   saveTags: (input: TagInput): Promise<string[]> => ipcRenderer.invoke('tags:save', input),
   rollAbility: (abilityId: number): Promise<RollLog> => ipcRenderer.invoke('ability:roll', abilityId),

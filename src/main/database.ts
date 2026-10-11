@@ -523,6 +523,7 @@ function normalizeCampaignInput(input: CampaignInput): Omit<CampaignInput,'id'> 
   const name=str(input.name,120).trim()
   if (!name) throw new Error('Campaign name is required')
   const imageData=str(input.imageData,6_000_000)
+  if (typeof input.imageData === 'string' && input.imageData.length > 6_000_000) throw new Error('Campaign artwork is too large. Please select a smaller image.')
   if (imageData && !/^data:image\/(png|jpeg|webp|gif);base64,/i.test(imageData)) throw new Error('Campaign artwork must be an embedded PNG, JPEG, WebP or GIF image.')
   return { name, description:str(input.description,4_000), setting:str(input.setting,180), ruleset:str(input.ruleset,100).trim()||'D&D 5e', imageData }
 }
@@ -724,9 +725,20 @@ export function saveNpc(input: NpcInput): Npc {
 }
 export function deleteNpc(id: number) { const safe=num(id); db.prepare("DELETE FROM taggings WHERE entity_type='npc' AND entity_id=?").run(safe); db.prepare('DELETE FROM npcs WHERE id=? AND campaign_id=?').run(safe,activeCampaignId); return true }
 export function saveNpcLog(input: NpcLogInput): NpcLog {
-  const title=str(input.title,180).trim()||'Untitled log'; const content=str(input.content); const npcName=str(input.npcName,180); const cid=activeCampaignId
-  const npcId=input.npcId && db.prepare('SELECT id FROM npcs WHERE id=? AND campaign_id=?').get(input.npcId,cid)?input.npcId:null
-  const id=Number(db.prepare('INSERT INTO npc_logs(campaign_id,npc_id,npc_name,title,content,created_at) VALUES(?,?,?,?,?,?)').run(cid,npcId,npcName,title,content,now()).lastInsertRowid)
+  const title=str(input.title,180).trim()||'Untitled log'
+  const content=str(input.content)
+  const npcName=str(input.npcName,180)
+  const cid=activeCampaignId
+  const npcId=input.npcId && db.prepare('SELECT id FROM npcs WHERE id=? AND campaign_id=?').get(input.npcId,cid) ? input.npcId : null
+  let id: number
+  if (input.id !== undefined) {
+    const existing=db.prepare('SELECT id FROM npc_logs WHERE id=? AND campaign_id=?').get(num(input.id,-1),cid)
+    if (!existing) throw new Error('Conversation entry not found in the active campaign')
+    db.prepare('UPDATE npc_logs SET npc_id=?,npc_name=?,title=?,content=? WHERE id=? AND campaign_id=?').run(npcId,npcName,title,content,input.id,cid)
+    id=input.id
+  } else {
+    id=Number(db.prepare('INSERT INTO npc_logs(campaign_id,npc_id,npc_name,title,content,created_at) VALUES(?,?,?,?,?,?)').run(cid,npcId,npcName,title,content,now()).lastInsertRowid)
+  }
   return toNpcLog(db.prepare('SELECT * FROM npc_logs WHERE id=? AND campaign_id=?').get(id,cid))
 }
 export function saveScratch(content: string) {
@@ -739,12 +751,26 @@ export function saveCurrency(currency: Currency): Currency {
   db.prepare('INSERT INTO campaign_currency(campaign_id,pp,gp,sp,cp,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(campaign_id) DO UPDATE SET pp=excluded.pp,gp=excluded.gp,sp=excluded.sp,cp=excluded.cp,updated_at=excluded.updated_at').run(activeCampaignId,safe.pp,safe.gp,safe.sp,safe.cp,now())
   return safe
 }
-export function addLoot(input: LootInput): LootItem {
-  const name=str(input.name,180).trim(); if(!name) throw new Error('Item name is required')
+export function saveLoot(input: LootInput): LootItem {
+  const name=str(input.name,180).trim()
+  if(!name) throw new Error('Item name is required')
   const kind=allowedLootKind.has(input.kind)?input.kind:'Item'
-  const id=Number(db.prepare('INSERT INTO loot_items(campaign_id,name,kind,quantity,description,value_gp,created_at) VALUES(?,?,?,?,?,?,?)').run(activeCampaignId,name,kind,Math.max(1,Math.floor(num(input.quantity,1))),str(input.description),Math.max(0,num(input.valueGp)),now()).lastInsertRowid)
-  return toLoot(db.prepare('SELECT * FROM loot_items WHERE id=? AND campaign_id=?').get(id,activeCampaignId))
+  const quantity=Math.max(1,Math.min(999_999,Math.floor(num(input.quantity,1))))
+  const description=str(input.description,100_000)
+  const valueGp=Math.max(0,Math.min(1_000_000_000,num(input.valueGp)))
+  const cid=activeCampaignId
+  let id:number
+  if(input.id!==undefined){
+    const existing=db.prepare('SELECT id FROM loot_items WHERE id=? AND campaign_id=?').get(num(input.id,-1),cid)
+    if(!existing) throw new Error('Loot item not found in the active campaign')
+    db.prepare('UPDATE loot_items SET name=?,kind=?,quantity=?,description=?,value_gp=? WHERE id=? AND campaign_id=?').run(name,kind,quantity,description,valueGp,input.id,cid)
+    id=input.id
+  } else {
+    id=Number(db.prepare('INSERT INTO loot_items(campaign_id,name,kind,quantity,description,value_gp,created_at) VALUES(?,?,?,?,?,?,?)').run(cid,name,kind,quantity,description,valueGp,now()).lastInsertRowid)
+  }
+  return toLoot(db.prepare('SELECT * FROM loot_items WHERE id=? AND campaign_id=?').get(id,cid))
 }
+export function addLoot(input: LootInput): LootItem { return saveLoot({ ...input, id: undefined }) }
 export function deleteLoot(id: number) { const safe=num(id); db.prepare("DELETE FROM taggings WHERE entity_type='loot' AND entity_id=?").run(safe); db.prepare('DELETE FROM loot_items WHERE id=? AND campaign_id=?').run(safe,activeCampaignId); return true }
 export function saveTags(input: TagInput) { addTags(input); return getTags(input.entityType, input.entityType==='scratch' ? - (input.campaignId ?? activeCampaignId) : input.entityId, input.campaignId ?? activeCampaignId) }
 

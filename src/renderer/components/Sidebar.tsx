@@ -28,7 +28,8 @@ export function Sidebar({ page, onNavigate, counts, campaigns, activeCampaignId,
       <div className="px-3 pb-4">
         <div className="section-eyebrow mb-2 px-2">Active campaign</div>
         <div className="campaign-switcher">
-          <div className="campaign-switcher-art" style={activeCampaign?.imageData ? { backgroundImage: `linear-gradient(0deg,rgba(9,10,13,.5),rgba(9,10,13,.08)),url("${activeCampaign.imageData}")` } : undefined}>
+          <div className="campaign-switcher-art">
+            {activeCampaign?.imageData && <img src={activeCampaign.imageData} alt="" className="campaign-switcher-image" />}
             {!activeCampaign?.imageData && <LibraryBig size={18} className="text-brass-300/65"/>}
           </div>
           <div className="min-w-0 flex-1">

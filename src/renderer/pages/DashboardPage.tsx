@@ -13,7 +13,9 @@ export function DashboardPage({ data, onNavigate, onOpenNote, onOpenQuest }: Pro
   const totalGpValue = data.currency.pp * 10 + data.currency.gp + data.currency.sp / 10 + data.currency.cp / 100
   return (
     <div className="page-enter space-y-6 p-6 xl:p-8">
-      <div className={`dashboard-hero relative overflow-hidden rounded-2xl border border-brass-400/15 bg-cover bg-center p-6 md:p-8 ${data.campaign.imageData ? 'dashboard-hero-with-image' : ''}`} style={data.campaign.imageData ? { backgroundImage: `linear-gradient(90deg,rgba(10,11,15,.96) 0%,rgba(10,11,15,.84) 48%,rgba(10,11,15,.38) 100%),url("${data.campaign.imageData}")` } : undefined}>
+      <div className={`dashboard-hero relative overflow-hidden rounded-2xl border border-brass-400/15 p-6 md:p-8 ${data.campaign.imageData ? 'dashboard-hero-with-image' : ''}`}>
+        {data.campaign.imageData && <img src={data.campaign.imageData} alt="" className="dashboard-campaign-image" />}
+        {data.campaign.imageData && <div className="dashboard-campaign-scrim" />}
         <div className="hero-orbit hero-orbit-one" /><div className="hero-orbit hero-orbit-two" />
         <div className="relative z-10 max-w-[600px]">
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[.22em] text-brass-300"><Sparkles size={13} /> Active campaign <span className="text-white/20">/</span> {data.campaign.setting || data.campaign.ruleset}</div>

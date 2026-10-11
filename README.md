@@ -137,3 +137,10 @@ The right-side field kit has its own vertical scroll area. Character Reference, 
 On first launch after upgrading an older single-campaign database, Spellbook & Quill creates a default campaign and assigns existing records to it in place. Existing note, quest, NPC, loot, character, tag, and roll identifiers are retained where possible; legacy party currency and scratch-pad text are copied into the new campaign-scoped tables. A backup should still be made before upgrading.
 
 Each campaign has separate records and character sheets. Character JSON export/import is the supported route for reusing a character between campaigns; linked/shared character state is intentionally not part of the current design. Campaign backups use the `.sqbackup` extension and can be restored as a new campaign. Deleting a campaign automatically writes a backup into the application's local `backups` folder before removing its records.
+
+## Recent usability fixes
+
+- Campaign artwork is converted to a smaller JPEG and displayed through local image elements, then stored in the local campaign record. New artwork is resized to at most 1200×750 and limited to about 3 MB after conversion.
+- NPC profile banner decoration no longer intercepts pointer clicks; the profile editor is kept above the banner layer and the page has more top breathing room.
+- NPC conversation-ledger entries can be selected and edited in place. Updates preserve the original entry creation date and are restricted to the active campaign.
+- Party-vault rows expand to show the complete, wrapped item description and totals. Loot properties, quantity, type and value can be updated without deleting and re-adding the item.

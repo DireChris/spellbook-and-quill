@@ -21,8 +21,8 @@ async function imageToDataUrl(file: File): Promise<string> {
   try {
     const image = new Image()
     await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = () => reject(new Error('That image could not be opened.')); image.src = objectUrl })
-    const maxWidth = 1440
-    const maxHeight = 900
+    const maxWidth = 1200
+    const maxHeight = 750
     const ratio = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight)
     const canvas = document.createElement('canvas')
     canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio))
@@ -30,8 +30,8 @@ async function imageToDataUrl(file: File): Promise<string> {
     const context = canvas.getContext('2d')
     if (!context) throw new Error('Your system could not prepare the image.')
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    const result = canvas.toDataURL('image/jpeg', 0.84)
-    if (result.length > 5_800_000) throw new Error('That image is still too large after resizing. Try a smaller image.')
+    const result = canvas.toDataURL('image/jpeg', 0.76)
+    if (result.length > 3_000_000) throw new Error('That image is still too large after resizing. Try a smaller image.')
     return result
   } finally { URL.revokeObjectURL(objectUrl) }
 }
@@ -124,9 +124,11 @@ export function CampaignsPage({ campaigns, activeCampaignId, onSwitch, onCreate,
             </div>
             <div className="space-y-3">
               <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={event => void pickImage(event)} />
-              <div className="campaign-art-preview" style={draft.imageData ? { backgroundImage: `linear-gradient(0deg,rgba(9,10,14,.25),rgba(9,10,14,.08)),url("${draft.imageData}")` } : undefined}>
+              <div className="campaign-art-preview">
+                {draft.imageData && <img src={draft.imageData} alt="Campaign artwork preview" className="campaign-art-image" />}
+                {draft.imageData && <div className="campaign-art-scrim" />}
                 {!draft.imageData && <div className="text-center"><ImagePlus size={24} className="mx-auto text-brass-300/70"/><p className="mt-2 text-[10px] text-white/35">Optional campaign artwork</p></div>}
-                {draft.imageData && <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-[9px] text-white/70">Artwork preview</span>}
+                {draft.imageData && <span className="absolute bottom-2 left-2 z-10 rounded-md bg-black/60 px-2 py-1 text-[9px] text-white/70">Artwork preview</span>}
               </div>
               <button className="secondary-button w-full justify-center" onClick={() => imageInput.current?.click()}><ImagePlus size={13}/>{draft.imageData ? 'Change artwork' : 'Add image'}</button>
               {draft.imageData && <button className="text-[10px] text-white/35 hover:text-rose-300" onClick={() => update('imageData','')}>Remove artwork</button>}
@@ -139,10 +141,12 @@ export function CampaignsPage({ campaigns, activeCampaignId, onSwitch, onCreate,
         <div className="mb-3 flex items-center justify-between"><div className="section-eyebrow">Your adventures <span className="ml-1 text-white/25">{campaigns.length}</span></div><div className="text-[10px] text-white/25">Stored on this device</div></div>
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {campaigns.map(campaign => <article key={campaign.id} className={`campaign-card overflow-hidden ${campaign.id === activeCampaignId ? 'campaign-card-active' : ''}`}>
-            <div className="campaign-card-art" style={campaign.imageData ? { backgroundImage: `linear-gradient(0deg,rgba(8,9,12,.82),rgba(8,9,12,.12)),url("${campaign.imageData}")` } : undefined}>
+            <div className="campaign-card-art">
+              {campaign.imageData && <img src={campaign.imageData} alt="" loading="lazy" className="campaign-art-image" />}
+              {campaign.imageData && <div className="campaign-card-art-scrim" />}
               {!campaign.imageData && <div className="campaign-card-placeholder"><BookOpen size={29}/></div>}
-              {campaign.id === activeCampaignId && <div className="absolute left-3 top-3 rounded-full border border-brass-300/25 bg-black/45 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[.15em] text-brass-200">Currently open</div>}
-              <div className="absolute bottom-3 left-4 right-4"><h3 className="font-display text-xl text-parchment">{campaign.name}</h3><p className="mt-1 text-[10px] text-white/60">{campaign.setting || campaign.ruleset}</p></div>
+              {campaign.id === activeCampaignId && <div className="absolute left-3 top-3 z-10 rounded-full border border-brass-300/25 bg-black/45 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[.15em] text-brass-200">Currently open</div>}
+              <div className="absolute bottom-3 left-4 right-4 z-10"><h3 className="font-display text-xl text-parchment">{campaign.name}</h3><p className="mt-1 text-[10px] text-white/60">{campaign.setting || campaign.ruleset}</p></div>
             </div>
             <div className="p-4"><p className="line-clamp-3 min-h-[48px] text-[11px] leading-5 text-white/40">{campaign.description || 'No campaign description yet.'}</p><div className="mt-2 flex items-center gap-1.5 text-[9px] text-white/25"><BookOpen size={11}/>{campaign.ruleset}<span className="text-white/15">·</span>Last opened {campaign.lastOpenedAt ? new Date(campaign.lastOpenedAt).toLocaleDateString() : 'recently'}</div>
               <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[.06] pt-3">

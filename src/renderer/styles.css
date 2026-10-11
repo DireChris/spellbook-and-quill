@@ -173,7 +173,7 @@ button:disabled { cursor: not-allowed; }
 .standing-dot-neutral { background:#bba365; }
 .standing-dot-hostile { background:#cf7979; box-shadow:0 0 7px rgba(207,121,121,.28); }
 .npc-profile-banner { background:radial-gradient(ellipse at 82% 28%,rgba(211,180,110,.14),transparent 42%),linear-gradient(110deg,#202229,#191c23 55%,#1a1b1b); }
-.npc-profile-banner::after { position:absolute; inset:0; content:""; opacity:.15; background-image:linear-gradient(45deg,transparent 49.7%,rgba(211,180,110,.25) 50%,transparent 50.3%); background-size:22px 22px; }
+.npc-profile-banner::after { position:absolute; z-index:0; inset:0; content:""; opacity:.15; pointer-events:none; background-image:linear-gradient(45deg,transparent 49.7%,rgba(211,180,110,.25) 50%,transparent 50.3%); background-size:22px 22px; }
 .banner-rune { position:absolute; top:17px; left:21px; display:flex; width:41px; height:41px; align-items:center; justify-content:center; border:1px solid rgba(211,180,110,.18); border-radius:12px; color:rgba(211,180,110,.6); background:rgba(211,180,110,.045); }
 .standing-pill { position:relative; z-index:1; display:inline-flex; border:1px solid transparent; border-radius:999px; padding:5px 9px; font-size:9px; }
 .standing-pill-friendly { border-color:rgba(145,173,155,.18); color:#91ad9b; background:rgba(145,173,155,.08); }
@@ -202,7 +202,8 @@ button:disabled { cursor: not-allowed; }
 
 /* Multi-campaign workspace */
 .campaign-switcher { display:flex; align-items:center; gap:9px; min-width:0; border:1px solid rgba(211,180,110,.13); border-radius:11px; padding:8px; background:linear-gradient(120deg,rgba(211,180,110,.055),rgba(255,255,255,.015)); }
-.campaign-switcher-art { display:flex; width:37px; height:37px; flex-shrink:0; align-items:center; justify-content:center; border:1px solid rgba(211,180,110,.16); border-radius:8px; background-color:rgba(211,180,110,.04); background-position:center; background-size:cover; }
+.campaign-switcher-art { position:relative; display:flex; width:37px; height:37px; flex-shrink:0; align-items:center; justify-content:center; overflow:hidden; border:1px solid rgba(211,180,110,.16); border-radius:8px; background-color:rgba(211,180,110,.04); background-position:center; background-size:cover; }
+.campaign-switcher-image { position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:cover; }
 .campaign-switcher-select { width:100%; min-width:0; appearance:none; border:0; padding:0; color:#e8dfc8; background:transparent; font-size:11px; font-weight:600; outline:none; cursor:pointer; }
 .campaign-switcher-select option { color:#e8dfc8; background:#151821; }
 .campaign-manage-link { display:flex; width:100%; align-items:center; gap:8px; margin-top:7px; border:1px solid transparent; border-radius:8px; padding:7px 9px; color:rgba(255,255,255,.38); font-size:10px; text-align:left; transition:all .15s; }
@@ -210,11 +211,18 @@ button:disabled { cursor: not-allowed; }
 .campaign-card { min-width:0; border:1px solid rgba(255,255,255,.065); border-radius:14px; background:linear-gradient(155deg,rgba(24,26,33,.94),rgba(15,17,22,.96)); transition:border-color .15s,transform .15s; }
 .campaign-card:hover { border-color:rgba(211,180,110,.19); }
 .campaign-card-active { border-color:rgba(211,180,110,.35); box-shadow:inset 0 0 0 1px rgba(211,180,110,.045),0 12px 35px rgba(0,0,0,.12); }
-.campaign-card-art { position:relative; display:flex; min-height:154px; align-items:flex-end; background-color:#171920; background-position:center; background-size:cover; }
+.campaign-card-art { position:relative; display:flex; min-height:154px; align-items:flex-end; overflow:hidden; background-color:#171920; background-position:center; background-size:cover; }
+.campaign-art-image { position:absolute; inset:0; z-index:0; display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
+.campaign-art-scrim { position:absolute; inset:0; z-index:1; pointer-events:none; background:linear-gradient(0deg,rgba(9,10,14,.32),rgba(9,10,14,.04)); }
+.campaign-card-art-scrim { position:absolute; inset:0; z-index:1; pointer-events:none; background:linear-gradient(0deg,rgba(8,9,12,.85),rgba(8,9,12,.12)); }
 .campaign-card-placeholder { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(211,180,110,.27); background:radial-gradient(ellipse at 50% 30%,rgba(211,180,110,.09),transparent 55%),linear-gradient(135deg,#202229,#111319); }
 .campaign-art-preview { display:flex; min-height:155px; align-items:center; justify-content:center; overflow:hidden; border:1px dashed rgba(211,180,110,.2); border-radius:10px; background-position:center; background-size:cover; background-color:rgba(255,255,255,.02); }
 .campaign-art-preview-empty { color:rgba(255,255,255,.27); background-image:radial-gradient(ellipse at center,rgba(211,180,110,.055),transparent 60%); }
 .dashboard-hero-with-image { background-position:center; background-size:cover; }
+.dashboard-campaign-image { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; object-position:center; }
+.dashboard-campaign-scrim { position:absolute; inset:0; z-index:1; pointer-events:none; background:linear-gradient(90deg,rgba(10,11,15,.96) 0%,rgba(10,11,15,.84) 48%,rgba(10,11,15,.38) 100%); }
 /* Give all directory panes a bounded flex height, preventing profile headers from clipping. */
 .npc-directory-main { min-height:0; min-width:0; overflow-x:hidden; overflow-y:auto; }
 .campaign-art-preview { position:relative; }
+.campaign-art-preview .campaign-art-image { border-radius:9px; }
+.campaign-art-preview .campaign-art-scrim { border-radius:9px; }
