@@ -144,3 +144,6 @@ Each campaign has separate records and character sheets. Character JSON export/i
 - NPC profile banner decoration no longer intercepts pointer clicks; the profile editor is kept above the banner layer and the page has more top breathing room.
 - NPC conversation-ledger entries can be selected and edited in place. Updates preserve the original entry creation date and are restricted to the active campaign.
 - Party-vault rows expand to show the complete, wrapped item description and totals. Loot properties, quantity, type and value can be updated without deleting and re-adding the item.
+### NPC portraits
+
+NPC profiles support optional local portrait images. Choose an image in the NPC editor; the app resizes it, saves it in the campaign's SQLite data and includes it in campaign backups. Portraits appear in the NPC list and profile header. Existing databases are migrated automatically by adding an empty `image_data` column, preserving existing NPC records.

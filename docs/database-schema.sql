@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS npcs (
   campaign_id INTEGER NOT NULL DEFAULT 1,
   name TEXT NOT NULL, faction TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '',
   standing TEXT NOT NULL DEFAULT 'Neutral' CHECK(standing IN ('Friendly','Neutral','Hostile')),
-  notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  notes TEXT NOT NULL DEFAULT '', image_data TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_npcs_campaign_name ON npcs(campaign_id, name COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS npc_logs (

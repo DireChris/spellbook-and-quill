@@ -217,7 +217,7 @@ function schema() {
     CREATE TABLE IF NOT EXISTS npcs (
       id INTEGER PRIMARY KEY AUTOINCREMENT, campaign_id INTEGER NOT NULL DEFAULT 1, name TEXT NOT NULL, faction TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '',
       standing TEXT NOT NULL DEFAULT 'Neutral' CHECK(standing IN ('Friendly','Neutral','Hostile')),
-      notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      notes TEXT NOT NULL DEFAULT '', image_data TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS npc_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT, campaign_id INTEGER NOT NULL DEFAULT 1, npc_id INTEGER REFERENCES npcs(id) ON DELETE SET NULL,
@@ -267,6 +267,7 @@ function schema() {
   ensureColumn('notes', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('quests', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('npcs', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
+  ensureColumn('npcs', 'image_data', "TEXT NOT NULL DEFAULT ''")
   ensureColumn('npc_logs', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('loot_items', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('characters', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
@@ -377,7 +378,7 @@ function toQuest(row: any): Quest {
     objectives: objectives.map(o => ({ id: o.id, questId: o.quest_id, title: o.title, done: Boolean(o.done), isSide: Boolean(o.is_side), sortOrder: o.sort_order })),
     createdAt: row.created_at, updatedAt: row.updated_at, tags: getTags('quest', row.id, row.campaign_id ?? activeCampaignId) }
 }
-function toNpc(row: any): Npc { return { id: row.id, name: row.name, faction: row.faction, location: row.location, standing: row.standing, notes: row.notes, createdAt: row.created_at, updatedAt: row.updated_at, tags: getTags('npc', row.id, row.campaign_id ?? activeCampaignId) } }
+function toNpc(row: any): Npc { return { id: row.id, name: row.name, faction: row.faction, location: row.location, standing: row.standing, notes: row.notes, imageData: row.image_data || '', createdAt: row.created_at, updatedAt: row.updated_at, tags: getTags('npc', row.id, row.campaign_id ?? activeCampaignId) } }
 function toNpcLog(row: any): NpcLog { return { id: row.id, npcId: row.npc_id ?? null, npcName: row.npc_name, title: row.title, content: row.content, createdAt: row.created_at, tags: getTags('npc_log', row.id, row.campaign_id ?? activeCampaignId) } }
 function toLoot(row: any): LootItem { return { id: row.id, name: row.name, kind: row.kind, quantity: row.quantity, description: row.description, valueGp: row.value_gp, createdAt: row.created_at, tags: getTags('loot', row.id, row.campaign_id ?? activeCampaignId) } }
 function toAbility(row: any): Ability { return { id: row.id, name: row.name, kind: row.kind, detail: row.detail, formula: row.formula, uses: row.uses } }
@@ -548,7 +549,7 @@ function snapshotCampaign(campaignId: number): CampaignBackup {
   const campaign=toCampaign(rawCampaign)
   const notes=(db.prepare('SELECT * FROM notes WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,title:row.title,content:row.content,kind:row.kind,tags:getTags('note',row.id,campaignId)}))
   const quests=(db.prepare('SELECT * FROM quests WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,name:row.name,giver:row.giver,status:row.status,rewards:row.rewards,notes:row.notes,tags:getTags('quest',row.id,campaignId),objectives:(db.prepare('SELECT title,done,is_side AS isSide,sort_order AS sortOrder FROM objectives WHERE quest_id=? ORDER BY sort_order,id').all(row.id) as any[]).map(o=>({title:o.title,done:Boolean(o.done),isSide:Boolean(o.isSide),sortOrder:o.sortOrder}))}))
-  const npcs=(db.prepare('SELECT * FROM npcs WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,name:row.name,faction:row.faction,location:row.location,standing:row.standing,notes:row.notes,tags:getTags('npc',row.id,campaignId)}))
+  const npcs=(db.prepare('SELECT * FROM npcs WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,name:row.name,faction:row.faction,location:row.location,standing:row.standing,notes:row.notes,imageData:row.image_data||'',tags:getTags('npc',row.id,campaignId)}))
   const npcLogs=(db.prepare('SELECT * FROM npc_logs WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,npcId:row.npc_id,npcName:row.npc_name,title:row.title,content:row.content,createdAt:row.created_at,tags:getTags('npc_log',row.id,campaignId)}))
   const loot=(db.prepare('SELECT * FROM loot_items WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,name:row.name,kind:row.kind,quantity:row.quantity,description:row.description,valueGp:row.value_gp,tags:getTags('loot',row.id,campaignId)}))
   const characters=getCharacters(campaignId).map(character=>({ ...character, abilities:(db.prepare('SELECT * FROM abilities WHERE campaign_id=? AND character_id=? ORDER BY id').all(campaignId,character.id) as any[]).map(toAbility) }))
@@ -620,8 +621,8 @@ export function importCampaignBackup(value: unknown): Campaign {
     const insertQuest=db.prepare('INSERT INTO quests(campaign_id,name,giver,status,rewards,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
     const insertObjective=db.prepare('INSERT INTO objectives(quest_id,title,done,is_side,sort_order) VALUES(?,?,?,?,?)')
     for(const item of (Array.isArray(content.quests)?content.quests:[]) as any[]){const t=now();const id=Number(insertQuest.run(cid,str(item.name,180)||'Untitled quest',str(item.giver,180),allowedStatus.has(item.status)?item.status:'In Progress',str(item.rewards),str(item.notes),t,t).lastInsertRowid);questMap.set(Number(item.id),id);for(const [index,obj] of (Array.isArray(item.objectives)?item.objectives:[]).entries())insertObjective.run(id,str(obj.title,300),obj.done?1:0,obj.isSide?1:0,index);if(Array.isArray(item.tags))tagTasks.push({entityType:'quest',entityId:id,tags:item.tags})}
-    const insertNpc=db.prepare('INSERT INTO npcs(campaign_id,name,faction,location,standing,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
-    for(const item of (Array.isArray(content.npcs)?content.npcs:[]) as any[]){const t=now();const id=Number(insertNpc.run(cid,str(item.name,180)||'Unnamed NPC',str(item.faction,180),str(item.location,180),allowedStanding.has(item.standing)?item.standing:'Neutral',str(item.notes),t,t).lastInsertRowid);npcMap.set(Number(item.id),id);if(Array.isArray(item.tags))tagTasks.push({entityType:'npc',entityId:id,tags:item.tags})}
+    const insertNpc=db.prepare('INSERT INTO npcs(campaign_id,name,faction,location,standing,notes,image_data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)')
+    for(const item of (Array.isArray(content.npcs)?content.npcs:[]) as any[]){const t=now();const npcImage=normalizeNpcImage(item.imageData);const id=Number(insertNpc.run(cid,str(item.name,180)||'Unnamed NPC',str(item.faction,180),str(item.location,180),allowedStanding.has(item.standing)?item.standing:'Neutral',str(item.notes),npcImage,t,t).lastInsertRowid);npcMap.set(Number(item.id),id);if(Array.isArray(item.tags))tagTasks.push({entityType:'npc',entityId:id,tags:item.tags})}
     const insertLog=db.prepare('INSERT INTO npc_logs(campaign_id,npc_id,npc_name,title,content,created_at) VALUES(?,?,?,?,?,?)')
     for(const item of (Array.isArray(content.npcLogs)?content.npcLogs:[]) as any[]){const nid=item.npcId==null?null:(npcMap.get(Number(item.npcId))??null);const id=Number(insertLog.run(cid,nid,str(item.npcName,180),str(item.title,180)||'Untitled log',str(item.content),str(item.createdAt,60)||now()).lastInsertRowid);if(Array.isArray(item.tags))tagTasks.push({entityType:'npc_log',entityId:id,tags:item.tags})}
     const insertLoot=db.prepare('INSERT INTO loot_items(campaign_id,name,kind,quantity,description,value_gp,created_at) VALUES(?,?,?,?,?,?,?)')
@@ -715,12 +716,20 @@ export function saveQuest(input: QuestInput): Quest {
 }
 export function deleteQuest(id: number) { const safe=num(id); db.prepare("DELETE FROM taggings WHERE entity_type='quest' AND entity_id=?").run(safe); db.prepare('DELETE FROM quests WHERE id=? AND campaign_id=?').run(safe,activeCampaignId); return true }
 
+function normalizeNpcImage(value: unknown): string {
+  if (typeof value !== 'string' || !value) return ''
+  if (value.length > 2_500_000) throw new Error('NPC portrait is too large. Please choose a smaller image.')
+  if (!/^data:image\/(jpeg|png|webp);base64,/i.test(value)) throw new Error('NPC portraits must be embedded JPEG, PNG or WebP images.')
+  return value
+}
+
 export function saveNpc(input: NpcInput): Npc {
   const name=str(input.name,180).trim(); if(!name) throw new Error('NPC name is required')
   const faction=str(input.faction,180), location=str(input.location,180), notes=str(input.notes)
+  const imageData=normalizeNpcImage(input.imageData)
   const standing=allowedStanding.has(input.standing)?input.standing:'Neutral'; const t=now(); let id=input.id; const cid=activeCampaignId
-  if(id && db.prepare('SELECT id FROM npcs WHERE id=? AND campaign_id=?').get(id,cid)) db.prepare('UPDATE npcs SET name=?,faction=?,location=?,standing=?,notes=?,updated_at=? WHERE id=? AND campaign_id=?').run(name,faction,location,standing,notes,t,id,cid)
-  else id=Number(db.prepare('INSERT INTO npcs(campaign_id,name,faction,location,standing,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').run(cid,name,faction,location,standing,notes,t,t).lastInsertRowid)
+  if(id && db.prepare('SELECT id FROM npcs WHERE id=? AND campaign_id=?').get(id,cid)) db.prepare('UPDATE npcs SET name=?,faction=?,location=?,standing=?,notes=?,image_data=?,updated_at=? WHERE id=? AND campaign_id=?').run(name,faction,location,standing,notes,imageData,t,id,cid)
+  else id=Number(db.prepare('INSERT INTO npcs(campaign_id,name,faction,location,standing,notes,image_data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)').run(cid,name,faction,location,standing,notes,imageData,t,t).lastInsertRowid)
   return toNpc(db.prepare('SELECT * FROM npcs WHERE id=? AND campaign_id=?').get(id,cid))
 }
 export function deleteNpc(id: number) { const safe=num(id); db.prepare("DELETE FROM taggings WHERE entity_type='npc' AND entity_id=?").run(safe); db.prepare('DELETE FROM npcs WHERE id=? AND campaign_id=?').run(safe,activeCampaignId); return true }

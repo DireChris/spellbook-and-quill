@@ -172,7 +172,10 @@ button:disabled { cursor: not-allowed; }
 .standing-dot-friendly { background:#91ad9b; box-shadow:0 0 7px rgba(145,173,155,.3); }
 .standing-dot-neutral { background:#bba365; }
 .standing-dot-hostile { background:#cf7979; box-shadow:0 0 7px rgba(207,121,121,.28); }
-.npc-profile-banner { background:radial-gradient(ellipse at 82% 28%,rgba(211,180,110,.14),transparent 42%),linear-gradient(110deg,#202229,#191c23 55%,#1a1b1b); }
+.npc-profile-banner { isolation:isolate; background:radial-gradient(ellipse at 82% 28%,rgba(211,180,110,.14),transparent 42%),linear-gradient(110deg,#202229,#191c23 55%,#1a1b1b); }
+.npc-portrait-image { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
+.npc-edit-portrait { display:flex; width:76px; height:76px; flex-shrink:0; align-items:center; justify-content:center; overflow:hidden; border:1px solid rgba(211,180,110,.22); border-radius:14px; color:rgba(211,180,110,.55); background:rgba(211,180,110,.05); }
+.npc-profile-portrait { position:relative; z-index:1; display:flex; width:74px; height:74px; flex-shrink:0; align-items:center; justify-content:center; overflow:hidden; border:1px solid rgba(211,180,110,.3); border-radius:15px; color:rgba(211,180,110,.7); background:rgba(211,180,110,.06); box-shadow:0 5px 16px rgba(0,0,0,.2); }
 .npc-profile-banner::after { position:absolute; z-index:0; inset:0; content:""; opacity:.15; pointer-events:none; background-image:linear-gradient(45deg,transparent 49.7%,rgba(211,180,110,.25) 50%,transparent 50.3%); background-size:22px 22px; }
 .banner-rune { position:absolute; top:17px; left:21px; display:flex; width:41px; height:41px; align-items:center; justify-content:center; border:1px solid rgba(211,180,110,.18); border-radius:12px; color:rgba(211,180,110,.6); background:rgba(211,180,110,.045); }
 .standing-pill { position:relative; z-index:1; display:inline-flex; border:1px solid transparent; border-radius:999px; padding:5px 9px; font-size:9px; }

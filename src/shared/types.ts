@@ -18,7 +18,7 @@ export interface Quest extends Taggable {
   objectives: Objective[]; createdAt: string; updatedAt: string
 }
 export interface Npc extends Taggable {
-  id: number; name: string; faction: string; location: string; standing: Standing; notes: string;
+  id: number; name: string; faction: string; location: string; standing: Standing; notes: string; imageData: string;
   createdAt: string; updatedAt: string
 }
 export interface NpcLog extends Taggable { id: number; npcId: number | null; npcName: string; title: string; content: string; createdAt: string }
@@ -55,7 +55,7 @@ export interface QuestInput {
   id?: number; name: string; giver: string; status: QuestStatus; rewards: string; notes: string;
   objectives: Array<{ id?: number; title: string; done: boolean; isSide: boolean }>
 }
-export interface NpcInput { id?: number; name: string; faction: string; location: string; standing: Standing; notes: string }
+export interface NpcInput { id?: number; name: string; faction: string; location: string; standing: Standing; notes: string; imageData: string }
 export interface LootInput { id?: number; name: string; kind: LootKind; quantity: number; description: string; valueGp: number }
 export interface NpcLogInput { id?: number; npcId?: number | null; npcName: string; title: string; content: string }
 export interface TagInput { entityType: EntityType; entityId: number; tags: string[]; campaignId?: number }
