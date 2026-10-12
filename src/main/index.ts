@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { buildCampaignWordDocument, campaignWordFilename } from './campaign-word-export'
@@ -88,6 +88,38 @@ function createWindow() {
       sandbox: true,
     },
   })
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    // Only customise right-clicks on editable text containing a misspelling.
+    // Preserve Electron's normal context menu everywhere else.
+    if (!params.isEditable || !params.misspelledWord) return
+
+    event.preventDefault()
+
+    const suggestions = params.dictionarySuggestions ?? []
+    const menu = Menu.buildFromTemplate([
+      ...(suggestions.length
+        ? suggestions.map((suggestion) => ({
+            label: suggestion,
+            click: () => {
+              mainWindow?.webContents.replaceMisspelling(suggestion)
+            },
+          }))
+        : [
+            {
+              label: 'No spelling suggestions',
+              enabled: false,
+            },
+          ]),
+      { type: 'separator' },
+      { label: 'Cut', role: 'cut' },
+      { label: 'Copy', role: 'copy' },
+      { label: 'Paste', role: 'paste' },
+      { label: 'Select All', role: 'selectAll' },
+    ])
+
+    menu.popup({ window: mainWindow ?? undefined })
+  })
+
   mainWindow.once('ready-to-show', () => mainWindow?.show())
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) void shell.openExternal(url)
