@@ -18,9 +18,11 @@ A local-first Dungeons & Dragons campaign companion for Windows, macOS, and Linu
 - **Persistent side rail:** scratch pad with debounced autosave and collapsible character reference panel.
 - **Seed campaign:** first launch creates a small example adventure so every module has content to explore. The seed only runs when no notes exist.
 
+![Application Interface](assets/images/Overview.png)
+
 ## Quick start
 
-Lastest Version will have .exe installer available to download.
+Lastest Version will have .exe installer available to download for Windows.
 https://github.com/DireChris/spellbook-and-quill/releases/latest
 
 ## Quick start build
