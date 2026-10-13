@@ -356,7 +356,7 @@ function addTags(input: TagInput) {
   const campaignId = input.campaignId ?? activeCampaignId
   const entityId = input.entityType === 'scratch' ? -campaignId : input.entityId
   if (input.entityType !== 'scratch' && entityId <= 0) throw new Error('Invalid tag target')
-  const tags = [...new Set(input.tags.map(tag => str(tag, 32).trim().replace(/^#/, '').replace(/\s+/g, '-')).filter(tag => /^[\p{L}\p{N}_-]{1,32}$/u.test(tag)).slice(0, 24))]
+  const tags = [...new Set(input.tags.map(tag => str(tag, 64).trim().replace(/^#/, '').replace(/^\[|\]$/g, '').replace(/\s+/g, ' ')).filter(tag => /^[\p{L}\p{N}_: .’'&\/-]{1,64}$/u.test(tag) && tag.trim()).slice(0, 24))]
   const insertTag = db.prepare('INSERT INTO tags(name) VALUES(?) ON CONFLICT(name) DO NOTHING')
   const findTag = db.prepare('SELECT id FROM tags WHERE name=? COLLATE NOCASE')
   const insertTagging = db.prepare('INSERT OR IGNORE INTO taggings(entity_type,entity_id,tag_id) VALUES(?,?,?)')
@@ -783,40 +783,78 @@ export function addLoot(input: LootInput): LootItem { return saveLoot({ ...input
 export function deleteLoot(id: number) { const safe=num(id); db.prepare("DELETE FROM taggings WHERE entity_type='loot' AND entity_id=?").run(safe); db.prepare('DELETE FROM loot_items WHERE id=? AND campaign_id=?').run(safe,activeCampaignId); return true }
 export function saveTags(input: TagInput) { addTags(input); return getTags(input.entityType, input.entityType==='scratch' ? - (input.campaignId ?? activeCampaignId) : input.entityId, input.campaignId ?? activeCampaignId) }
 
+function searchSnippet(value: string, query: string): string {
+  const text = plainText(value)
+  if (!text) return ''
+  if (!query) return text.slice(0, 180)
+  const at = text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase())
+  if (at < 0) return text.slice(0, 180)
+  const sentenceStart = Math.max(text.lastIndexOf('.', at), text.lastIndexOf('!', at), text.lastIndexOf('?', at), text.lastIndexOf('\n', at)) + 1
+  let sentenceEnd = text.length
+  for (const mark of ['.', '!', '?', '\n']) { const found = text.indexOf(mark, at + query.length); if (found >= 0) sentenceEnd = Math.min(sentenceEnd, found + 1) }
+  let snippet = text.slice(sentenceStart, sentenceEnd).trim()
+  if (snippet.length > 220) {
+    const begin = Math.max(0, at - sentenceStart - 70)
+    snippet = `${begin ? '…' : ''}${text.slice(sentenceStart + begin, Math.min(sentenceEnd, sentenceStart + begin + 180)).trim()}${sentenceStart + begin + 180 < sentenceEnd ? '…' : ''}`
+  }
+  return snippet || text.slice(Math.max(0, at - 70), at + query.length + 100)
+}
+
 export function searchAll(query: string, allCampaigns = false): SearchResult[] {
-  const q=str(query,200).trim()
-  if(!q)return []
-  const pattern=`%${q.replace(/[\\%_]/g, '\\$&')}%`
-  const results:SearchResult[]=[]
-  const scope=allCampaigns?'':' AND x.campaign_id=?'
-  const params=(...items:any[])=>allCampaigns?items:[...items,activeCampaignId]
-  const push=(item:Omit<SearchResult,'tags'|'entityType'|'campaignId'|'campaignName'>,type:EntityType,cid:number,campaignName:string)=>results.push({...item,entityType:type,tags:getTags(type,item.id,cid),campaignId:cid,campaignName})
-  const append=(sql:string,values:any[],type:EntityType,titleKey='title',bodyKey='body')=>{
-    const rows=db.prepare(sql).all(...values) as any[]
-    for(const r of rows)push({id:r.id,title:r[titleKey],excerpt:plainText(r[bodyKey]||'').slice(0,180),updatedAt:r.ts,meta:r.meta},type,r.campaign_id,r.campaign_name)
+  const raw = str(query, 200).trim()
+  if (!raw) return []
+  const tagQuery = raw.match(/^\[([^\]]{1,64})\]$/u)?.[1]?.trim()
+  const q = tagQuery || raw
+  const pattern = `%${q.replace(/[\\%_]/g, '\\$&')}%`
+  const results: SearchResult[] = []
+  const scope = allCampaigns ? '' : ' AND x.campaign_id=?'
+  const params = (...items: any[]) => allCampaigns ? items : [...items, activeCampaignId]
+  const push = (item: Omit<SearchResult, 'tags'|'entityType'|'campaignId'|'campaignName'>, type: EntityType, cid: number, campaignName: string) => results.push({ ...item, entityType: type, tags: getTags(type, item.id, cid), campaignId: cid, campaignName })
+  const append = (sql: string, values: any[], type: EntityType, titleKey = 'title', bodyKey = 'body') => {
+    const rows = db.prepare(sql).all(...values) as any[]
+    for (const r of rows) {
+      const body = plainText(r[bodyKey] || '')
+      const titleMatch = String(r[titleKey] || '').toLocaleLowerCase().includes(q.toLocaleLowerCase())
+      push({ id: r.id, title: r[titleKey], excerpt: searchSnippet(body, q), updatedAt: r.ts, meta: r.meta, matchTerm: titleMatch && !body.toLocaleLowerCase().includes(q.toLocaleLowerCase()) ? undefined : q, matchKind: 'text' }, type, r.campaign_id, r.campaign_name)
+    }
   }
-  append(`SELECT x.id,x.title,x.content AS body,x.updated_at AS ts,x.campaign_id,c.name AS campaign_name FROM notes x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.title LIKE ? ESCAPE '\\' OR x.content LIKE ? ESCAPE '\\')${scope}`,
-    params(pattern,pattern),'note')
-  append(`SELECT x.id,x.name AS title,x.notes AS body,x.updated_at AS ts,x.status AS meta,x.campaign_id,c.name AS campaign_name FROM quests x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.name LIKE ? ESCAPE '\\' OR x.giver LIKE ? ESCAPE '\\' OR x.notes LIKE ? ESCAPE '\\' OR x.rewards LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM objectives o WHERE o.quest_id=x.id AND o.title LIKE ? ESCAPE '\\'))${scope}`,
-    params(pattern,pattern,pattern,pattern,pattern),'quest')
-  const scratchRows = db.prepare(`SELECT -s.campaign_id AS id,s.content AS body,s.updated_at AS ts,s.campaign_id,c.name AS campaign_name FROM campaign_scratch s JOIN campaigns c ON c.id=s.campaign_id WHERE s.content LIKE ? ESCAPE '\\'${allCampaigns?'':' AND s.campaign_id=?'}`).all(...(allCampaigns?[pattern]:[pattern,activeCampaignId])) as any[]
-  for(const r of scratchRows)push({id:r.id,title:'Scratch Pad',excerpt:plainText(r.body).slice(0,180),updatedAt:r.ts},'scratch',r.campaign_id,r.campaign_name)
-  append(`SELECT x.id,x.name AS title,x.notes AS body,x.updated_at AS ts,x.faction AS meta,x.campaign_id,c.name AS campaign_name FROM npcs x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.name LIKE ? ESCAPE '\\' OR x.faction LIKE ? ESCAPE '\\' OR x.location LIKE ? ESCAPE '\\' OR x.notes LIKE ? ESCAPE '\\')${scope}`,
-    params(pattern,pattern,pattern,pattern),'npc')
-  append(`SELECT x.id,x.title,x.content AS body,x.created_at AS ts,x.npc_name AS meta,x.campaign_id,c.name AS campaign_name FROM npc_logs x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.title LIKE ? ESCAPE '\\' OR x.content LIKE ? ESCAPE '\\' OR x.npc_name LIKE ? ESCAPE '\\')${scope}`,
-    params(pattern,pattern,pattern),'npc_log')
-  append(`SELECT x.id,x.name AS title,x.description AS body,x.created_at AS ts,x.kind AS meta,x.campaign_id,c.name AS campaign_name FROM loot_items x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.name LIKE ? ESCAPE '\\' OR x.description LIKE ? ESCAPE '\\')${scope}`,
-    params(pattern,pattern),'loot')
-  const lower=q.toLocaleLowerCase()
-  const tagged=db.prepare(`SELECT entity_type,entity_id FROM taggings JOIN tags ON tags.id=taggings.tag_id WHERE tags.name LIKE ? ESCAPE '\\'`).all(pattern) as any[]
-  for(const row of tagged){
-    if(!allowedEntityTypes.has(row.entity_type))continue
-    const result=lookupSearchEntity(row.entity_type as EntityType,Number(row.entity_id),allCampaigns?undefined:activeCampaignId)
-    if(!result || !result.tags.some(tag=>tag.toLocaleLowerCase().includes(lower)))continue
-    if(!results.some(item=>item.entityType===result.entityType&&item.id===result.id&&item.campaignId===result.campaignId))results.push(result)
+  if (!tagQuery) {
+    append(`SELECT x.id,x.title,x.content AS body,x.updated_at AS ts,x.campaign_id,c.name AS campaign_name FROM notes x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.title LIKE ? ESCAPE '\\' OR x.content LIKE ? ESCAPE '\\')${scope}`, params(pattern, pattern), 'note')
+    append(`SELECT x.id,x.name AS title,x.notes AS body,x.updated_at AS ts,x.status AS meta,x.campaign_id,c.name AS campaign_name FROM quests x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.name LIKE ? ESCAPE '\\' OR x.giver LIKE ? ESCAPE '\\' OR x.notes LIKE ? ESCAPE '\\' OR x.rewards LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM objectives o WHERE o.quest_id=x.id AND o.title LIKE ? ESCAPE '\\'))${scope}`, params(pattern,pattern,pattern,pattern,pattern), 'quest')
+    const scratchRows = db.prepare(`SELECT -s.campaign_id AS id,s.content AS body,s.updated_at AS ts,s.campaign_id,c.name AS campaign_name FROM campaign_scratch s JOIN campaigns c ON c.id=s.campaign_id WHERE s.content LIKE ? ESCAPE '\\'${allCampaigns?'':' AND s.campaign_id=?'}`).all(...(allCampaigns?[pattern]:[pattern,activeCampaignId])) as any[]
+    for (const r of scratchRows) push({ id:r.id,title:'Scratch Pad',excerpt:searchSnippet(r.body,q),updatedAt:r.ts,matchTerm:q,matchKind:'text' },'scratch',r.campaign_id,r.campaign_name)
+    append(`SELECT x.id,x.name AS title,x.notes AS body,x.updated_at AS ts,x.faction AS meta,x.campaign_id,c.name AS campaign_name FROM npcs x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.name LIKE ? ESCAPE '\\' OR x.faction LIKE ? ESCAPE '\\' OR x.location LIKE ? ESCAPE '\\' OR x.notes LIKE ? ESCAPE '\\')${scope}`, params(pattern,pattern,pattern,pattern), 'npc')
+    append(`SELECT x.id,x.title,x.content AS body,x.created_at AS ts,x.npc_name AS meta,x.campaign_id,c.name AS campaign_name FROM npc_logs x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.title LIKE ? ESCAPE '\\' OR x.content LIKE ? ESCAPE '\\' OR x.npc_name LIKE ? ESCAPE '\\')${scope}`, params(pattern,pattern,pattern), 'npc_log')
+    append(`SELECT x.id,x.name AS title,x.description AS body,x.created_at AS ts,x.kind AS meta,x.campaign_id,c.name AS campaign_name FROM loot_items x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.name LIKE ? ESCAPE '\\' OR x.description LIKE ? ESCAPE '\\')${scope}`, params(pattern,pattern), 'loot')
   }
-  const seen=new Set<string>()
-  return results.filter(result=>{const key=`${result.campaignId}:${result.entityType}:${result.id}`;if(seen.has(key))return false;seen.add(key);return true}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,100)
+  const taggedSql = tagQuery
+    ? 'SELECT entity_type,entity_id FROM taggings JOIN tags ON tags.id=taggings.tag_id WHERE tags.name=? COLLATE NOCASE'
+    : `SELECT entity_type,entity_id FROM taggings JOIN tags ON tags.id=taggings.tag_id WHERE tags.name LIKE ? ESCAPE '\\'`
+  const tagged = db.prepare(taggedSql).all(tagQuery ? q : pattern) as any[]
+  for (const row of tagged) {
+    if (!allowedEntityTypes.has(row.entity_type)) continue
+    const result = lookupSearchEntity(row.entity_type as EntityType, Number(row.entity_id), allCampaigns ? undefined : activeCampaignId)
+    if (!result || (!tagQuery && !result.tags.some(tag => tag.toLocaleLowerCase().includes(q.toLocaleLowerCase())))) continue
+    const existing = results.find(item => item.entityType===result.entityType && item.id===result.id && item.campaignId===result.campaignId)
+    if (existing) existing.matchKind = 'both'
+    else results.push({ ...result, matchTerm: undefined, matchKind: 'tag' })
+  }
+  const seen = new Set<string>()
+  return results.filter(result => { const key=`${result.campaignId}:${result.entityType}:${result.id}`; if(seen.has(key))return false;seen.add(key);return true }).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,250)
+}
+
+export function getRelatedTags(tagName: string, allCampaigns = false): Array<{name:string;count:number}> {
+  const name = str(tagName, 64).trim().replace(/^\[|\]$/g, '')
+  if (!name) return []
+  const campaignClause = allCampaigns ? '' : ' AND e.campaign_id=?'
+  const campaignParams = allCampaigns ? [] : [activeCampaignId]
+  const rows = db.prepare(`SELECT related.name AS name, COUNT(DISTINCT source.entity_type || ':' || source.entity_id) AS count
+    FROM taggings source JOIN tags target ON target.id=source.tag_id
+    JOIN taggings related_link ON related_link.entity_type=source.entity_type AND related_link.entity_id=source.entity_id AND related_link.tag_id<>source.tag_id
+    JOIN tags related ON related.id=related_link.tag_id
+    JOIN (SELECT 'note' AS entity_type,id,campaign_id FROM notes UNION ALL SELECT 'quest',id,campaign_id FROM quests UNION ALL SELECT 'npc',id,campaign_id FROM npcs UNION ALL SELECT 'npc_log',id,campaign_id FROM npc_logs UNION ALL SELECT 'loot',id,campaign_id FROM loot_items UNION ALL SELECT 'scratch',-campaign_id,campaign_id FROM campaign_scratch) e ON e.entity_type=source.entity_type AND e.id=source.entity_id
+    WHERE target.name=? COLLATE NOCASE${campaignClause} GROUP BY related.id ORDER BY count DESC, related.name COLLATE NOCASE LIMIT 12`).all(name, ...campaignParams) as Array<{name:string;count:number}>
+  return rows
 }
 function lookupSearchEntity(type:EntityType,id:number,campaignId?:number):SearchResult|null{
   const tagId=type==='scratch'?id:id

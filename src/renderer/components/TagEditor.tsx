@@ -7,9 +7,10 @@ interface TagEditorProps {
   compact?: boolean
   placeholder?: string
   dataTagInput?: string
+  onTagClick?: (tag: string) => void
 }
 
-export function TagEditor({ tags, onChange, compact = false, placeholder = 'Add a tag…', dataTagInput }: TagEditorProps) {
+export function TagEditor({ tags, onChange, compact = false, placeholder = 'Add a tag…', dataTagInput, onTagClick }: TagEditorProps) {
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -18,16 +19,16 @@ export function TagEditor({ tags, onChange, compact = false, placeholder = 'Add 
     return () => window.removeEventListener('spellbook:focus-tags', focus)
   }, [])
   const add = () => {
-    const tag = draft.trim().replace(/^#/, '').replace(/\s+/g, '-')
+    const tag = draft.trim().replace(/^#/, '').replace(/^\[|\]$/g, '').replace(/\s+/g, ' ').slice(0, 64)
     if (!tag) return
-    if (!tags.some(t => t.toLocaleLowerCase() === tag.toLocaleLowerCase())) onChange([...tags, tag.slice(0, 32)])
+    if (!tags.some(t => t.toLocaleLowerCase() === tag.toLocaleLowerCase())) onChange([...tags, tag.slice(0, 64)])
     setDraft('')
   }
   const remove = (tag: string) => onChange(tags.filter(t => t !== tag))
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${compact ? 'min-h-6' : 'min-h-8'}`}>
       {tags.map(tag => <span key={tag} className={`tag-chip group ${compact ? 'tag-chip-compact' : ''}`}>
-        <span className="text-brass-300">#</span>{tag}
+        <button type="button" onClick={() => onTagClick?.(tag)} className="tag-open" title={`Search for [${tag}]`}><span className="text-brass-300">[</span>{tag}<span className="text-brass-300">]</span></button>
         <button type="button" className="tag-remove" title={`Remove tag ${tag}`} onClick={() => remove(tag)}><X size={11} /></button>
       </span>)}
       <div className="flex min-w-[94px] flex-1 items-center gap-1">

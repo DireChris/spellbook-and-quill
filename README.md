@@ -84,6 +84,7 @@ spellbook-and-quill/
 │   │   ├── pages/
 │   │   │   ├── DashboardPage.tsx
 │   │   │   ├── NotesPage.tsx
+│   │   │   ├── SearchPage.tsx
 │   │   │   ├── NpcsPage.tsx
 │   │   │   ├── QuestsPage.tsx
 │   │   │   └── VaultPage.tsx
@@ -120,7 +121,7 @@ The SQLite file is `spellbook-and-quill.sqlite` inside Electron's `app.getPath('
 ## Quick reference (using the app)
 
 - **Choose a campaign:** use the campaign selector at the top of the left sidebar. The last-used campaign opens automatically at startup. Use **Manage campaigns** to create, edit, switch, export, restore, or delete campaigns.
-- **Create notes:** open **Session notes**, create a note, then type in the editor. Formatting controls are above the editor; use `Ctrl+T` to focus the note tag field, or type `#` in the editor to get tag suggestions. Notes autosave locally.
+- **Create notes:** open **Session notes**, create a note, then type in the editor. Formatting controls are above the editor; use `Ctrl+T` to focus the note tag field, or type `[` in the editor to get bracketed tag suggestions such as `[magic weapon]`. Notes autosave locally.
 - **Track quests:** use **Quest log** to create quests and objectives. Mark objectives complete from the quest tracker while playing.
 - **Maintain NPC records:** open **NPC directory** to create/edit profiles, add portraits, and maintain a conversation ledger.
 - **Track party property:** open **Party vault** for currency and loot. Expand an item to read its full description and edit it.

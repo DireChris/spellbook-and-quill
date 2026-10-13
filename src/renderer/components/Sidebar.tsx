@@ -1,6 +1,6 @@
-import { BookMarked, BookOpenText, ChevronsUpDown, Compass, Gem, LibraryBig, ScrollText, Shield, Sparkles, Users, UserRound, WandSparkles } from 'lucide-react'
+import { BookMarked, BookOpenText, ChevronsUpDown, Compass, Gem, LibraryBig, ScrollText, Search, Shield, Sparkles, Users, UserRound, WandSparkles } from 'lucide-react'
 import type { Campaign } from '../../shared/types'
-export type PageKey = 'dashboard' | 'notes' | 'quests' | 'vault' | 'npcs' | 'character' | 'campaigns'
+export type PageKey = 'dashboard' | 'notes' | 'quests' | 'vault' | 'npcs' | 'character' | 'campaigns' | 'search'
 interface SidebarProps {
   page: PageKey
   onNavigate: (page: PageKey) => void
@@ -16,6 +16,7 @@ const items: Array<{ id: PageKey; label: string; icon: typeof Compass; descripti
   { id: 'vault', label: 'Party vault', icon: Gem, description: 'Coin & treasure' },
   { id: 'npcs', label: 'NPC directory', icon: Users, description: 'People & factions' },
   { id: 'character', label: 'Character sheets', icon: UserRound, description: 'Stats, abilities & import' },
+  { id: 'search', label: 'Search', icon: Search, description: 'Find clues & connections' },
 ]
 export function Sidebar({ page, onNavigate, counts, campaigns, activeCampaignId, onSwitchCampaign }: SidebarProps) {
   const activeCampaign=campaigns.find(campaign=>campaign.id===activeCampaignId)

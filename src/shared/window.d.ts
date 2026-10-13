@@ -1,6 +1,6 @@
 import type {
   Ability, AbilityInput, Campaign, CampaignBackup, CampaignInput, CharacterStats, CharacterStatsInput, Currency, DashboardData, LootInput, LootItem, Note, NoteInput, Npc, NpcInput, NpcLog, NpcLogInput,
-  Quest, QuestInput, RollLog, SearchResult, TagInput, WorkspaceState,
+  Quest, QuestInput, RelatedTag, RollLog, SearchResult, TagInput, WorkspaceState,
 } from './types'
 
 declare global {
@@ -16,6 +16,7 @@ declare global {
       exportCampaignWord(): Promise<{ cancelled: boolean; filePath?: string }>
       importCampaignBackup(backup: CampaignBackup): Promise<Campaign>
       search(query: string, allCampaigns?: boolean): Promise<SearchResult[]>
+      relatedTags(tag: string, allCampaigns?: boolean): Promise<RelatedTag[]>
       saveNote(input: NoteInput): Promise<Note>
       deleteNote(id: number): Promise<boolean>
       saveQuest(input: QuestInput): Promise<Quest>

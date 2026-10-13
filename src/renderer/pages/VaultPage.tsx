@@ -9,10 +9,11 @@ interface Props {
   onCurrencySave: (currency: Currency) => Promise<void>
   onSaveLoot: (input: LootInput) => Promise<void>
   onDeleteLoot: (id: number) => Promise<void>
+  onTagClick: (tag: string) => void
 }
 const zero: LootInput = { name: '', kind: 'Item', quantity: 1, description: '', valueGp: 0 }
 
-export function VaultPage({ currency, loot, onCurrencySave, onSaveLoot, onDeleteLoot }: Props) {
+export function VaultPage({ currency, loot, onCurrencySave, onSaveLoot, onDeleteLoot, onTagClick }: Props) {
   const [coins, setCoins] = useState(currency)
   const [item, setItem] = useState<LootInput>(zero)
   const [showForm, setShowForm] = useState(false)
@@ -68,7 +69,7 @@ export function VaultPage({ currency, loot, onCurrencySave, onSaveLoot, onDelete
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.8fr)_120px_80px_100px_76px]">
                 <button type="button" aria-expanded={expanded} onClick={() => setExpandedLootId(expanded ? null : lootItem.id)} className="flex min-w-0 items-center gap-3 text-left">
                   <div className={`loot-icon ${lootItem.kind === 'Magic Item' ? 'loot-icon-magic' : ''}`}><Gem size={15}/></div>
-                  <div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-2"><span className="truncate text-xs font-medium text-parchment">{lootItem.name}</span>{expanded ? <ChevronDown size={13} className="shrink-0 text-brass-300"/> : <ChevronRight size={13} className="shrink-0 text-white/30"/>}</div><p className="mt-1 line-clamp-1 break-words text-left text-[10px] text-white/35">{lootItem.description || 'No description recorded.'}</p><div className="mt-1 flex flex-wrap gap-1">{lootItem.tags.map(tag => <span key={tag} className="text-[8px] text-brass-300/70">#{tag}</span>)}</div></div>
+                  <div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-2"><span className="truncate text-xs font-medium text-parchment">{lootItem.name}</span>{expanded ? <ChevronDown size={13} className="shrink-0 text-brass-300"/> : <ChevronRight size={13} className="shrink-0 text-white/30"/>}</div><p className="mt-1 line-clamp-1 break-words text-left text-[10px] text-white/35">{lootItem.description || 'No description recorded.'}</p><div className="mt-1 flex flex-wrap gap-1">{lootItem.tags.map(tag => <span key={tag} role="button" tabIndex={0} onClick={event => { event.stopPropagation(); onTagClick(tag) }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onTagClick(tag) } }} className="cursor-pointer text-[8px] text-brass-300/70 hover:text-brass-200">[{tag}]</span>)}</div></div>
                 </button>
                 <span className="hidden text-[10px] text-white/50 md:inline">{lootItem.kind}</span><span className="hidden text-[11px] tabular-nums text-parchment md:inline">{lootItem.quantity}</span><span className="hidden text-[11px] tabular-nums text-brass-300 md:inline">{lootItem.valueGp.toLocaleString()} gp</span>
                 <div className="flex items-center justify-end gap-1"><button type="button" onClick={() => editItem(lootItem)} title={`Edit ${lootItem.name}`} aria-label={`Edit ${lootItem.name}`} className="icon-button"><Pencil size={12}/></button><button type="button" onClick={() => void removeItem(lootItem)} title={`Remove ${lootItem.name}`} aria-label={`Remove ${lootItem.name}`} className="icon-button hover:!text-rose-300"><Trash2 size={13}/></button></div>

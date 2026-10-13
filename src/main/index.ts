@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { buildCampaignWordDocument, campaignWordFilename } from './campaign-word-export'
 import {
   addLoot, closeDatabase, createCampaign, createCharacter, deleteCampaign, deleteCharacter, deleteLoot, deleteNote, deleteNpc, deleteQuest, exportCampaignBackup, getDashboard, getWorkspaceState, importCampaignBackup, initDatabase,
-  rollAbility, saveAbilities, saveCharacter, saveCurrency, saveLoot, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll, selectCharacter, setActiveCampaign, updateCampaign,
+  rollAbility, saveAbilities, saveCharacter, saveCurrency, saveLoot, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll, getRelatedTags, selectCharacter, setActiveCampaign, updateCampaign,
 } from './database'
 import type { AbilityInput, CampaignBackup, CampaignInput, CharacterStatsInput, Currency, LootInput, NoteInput, NpcInput, NpcLogInput, QuestInput, TagInput } from '../shared/types'
 
@@ -50,6 +50,7 @@ function registerIpc() {
   })
   handle('campaigns:import-backup', (backup: CampaignBackup) => importCampaignBackup(backup))
   handle('search:all', (q: string, allCampaigns = false) => searchAll(q, allCampaigns))
+  handle('search:related-tags', (tag: string, allCampaigns = false) => getRelatedTags(tag, allCampaigns))
   handle('note:save', (input: NoteInput) => saveNote(input))
   handle('note:delete', (id: number) => deleteNote(id))
   handle('quest:save', (input: QuestInput) => saveQuest(input))

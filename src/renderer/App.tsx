@@ -14,6 +14,7 @@ import { VaultPage } from './pages/VaultPage'
 import { NpcsPage } from './pages/NpcsPage'
 import { CharacterSheetPage } from './pages/CharacterSheetPage'
 import { CampaignsPage } from './pages/CampaignsPage'
+import { SearchPage } from './pages/SearchPage'
 
 export default function App() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -110,8 +111,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', key)
   }, [page])
 
-  const navigate = useCallback((next: PageKey) => {
-    const finishNavigation = () => { setPage(next); setSearchQuery('') }
+  const navigate = useCallback((next: PageKey, preserveSearch = false) => {
+    const finishNavigation = () => { setPage(next); if (!preserveSearch && next !== 'search') setSearchQuery('') }
     if (page === 'notes' && next !== 'notes' && selectedNote) {
       if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current)
       // Wait until the current note has been written before the active campaign
@@ -121,6 +122,13 @@ export default function App() {
     }
     finishNavigation()
   }, [page, selectedNote, persistSnapshot, notify])
+
+  const openTagSearch = useCallback((tag: string) => {
+    setSearchQuery(`[${tag}]`)
+    navigate('search', true)
+  }, [navigate])
+
+  const openFullSearch = useCallback(() => { navigate('search', true) }, [navigate])
 
   const switchCampaign = useCallback(async (id: number): Promise<DashboardData> => {
     if (workspace?.activeCampaignId === id && data) { setPage('dashboard'); return data }
@@ -315,15 +323,16 @@ export default function App() {
     <div className="app-shell flex h-screen min-w-[1080px] overflow-hidden bg-ink-950 text-parchment">
       <Sidebar page={page} onNavigate={navigate} counts={{ notes: data.notes.length, quests: data.quests.length, npcs: data.npcs.length, loot: data.loot.length }} campaigns={workspace.campaigns} activeCampaignId={workspace.activeCampaignId} onSwitchCampaign={id => { void switchCampaign(id).catch(error => notify(error instanceof Error ? error.message : 'Could not switch campaigns', true)) }} />
       <div className="main-shell flex min-w-0 flex-1 flex-col">
-        <Topbar query={searchQuery} onQueryChange={setSearchQuery} results={searchResults} searching={searching} onOpenResult={result => { void openResult(result).catch(error => notify(error instanceof Error ? error.message : 'Could not open search result', true)) }} onResultTags={editSearchTags} allCampaigns={allCampaignsSearch} onAllCampaignsChange={setAllCampaignsSearch}/>
+        <Topbar query={searchQuery} onQueryChange={setSearchQuery} results={searchResults} searching={searching} onOpenResult={result => { void openResult(result).catch(error => notify(error instanceof Error ? error.message : 'Could not open search result', true)) }} onResultTags={editSearchTags} allCampaigns={allCampaignsSearch} onAllCampaignsChange={setAllCampaignsSearch} onViewAll={openFullSearch} onTagClick={openTagSearch} showSuggestions={page !== 'search'}/>
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-            {page === 'dashboard' && <div className="h-full min-h-0 overflow-y-auto"><DashboardPage data={data} onNavigate={navigate} onOpenNote={note => { navigate('notes'); selectNote(note) }} onOpenQuest={quest => { setOpenQuestId(quest.id); navigate('quests') }} onExportWord={() => { void exportCurrentCampaignWord() }}/></div>}
+            {page === 'dashboard' && <div className="h-full min-h-0 overflow-y-auto"><DashboardPage data={data} onNavigate={navigate} onOpenNote={note => { navigate('notes'); selectNote(note) }} onOpenQuest={quest => { setOpenQuestId(quest.id); navigate('quests') }} onExportWord={() => { void exportCurrentCampaignWord() }} onTagClick={openTagSearch}/></div>}
             {page === 'campaigns' && <CampaignsPage campaigns={workspace.campaigns} activeCampaignId={workspace.activeCampaignId} onSwitch={async id => { await switchCampaign(id) }} onCreate={createCampaign} onUpdate={updateCampaign} onDelete={deleteCampaign} onExportBackup={exportCampaignBackup} onImportBackup={importCampaignBackup}/>}
-            {page === 'notes' && <NotesPage notes={data.notes} selectedNote={selectedNote} knownTags={knownTags} saving={savingNote} onSelect={note => { selectNote(note) }} onCreate={() => void createNote().catch(() => notify('Could not create a note', true))} onTitleChange={handleTitleChange} onContentChange={handleContentChange} onTagsChange={handleNoteTags} onDelete={() => void deleteCurrentNote()} onSaveNow={() => void saveNoteNow()}/>}
-            {page === 'quests' && <QuestsPage quests={data.quests} openQuestId={openQuestId} onSave={saveQuest} onDelete={deleteQuest}/>}
-            {page === 'vault' && <VaultPage currency={data.currency} loot={data.loot} onCurrencySave={saveCurrency} onSaveLoot={saveLoot} onDeleteLoot={deleteLoot}/>}
+            {page === 'notes' && <NotesPage notes={data.notes} selectedNote={selectedNote} knownTags={knownTags} saving={savingNote} onSelect={note => { selectNote(note) }} onCreate={() => void createNote().catch(() => notify('Could not create a note', true))} onTitleChange={handleTitleChange} onContentChange={handleContentChange} onTagsChange={handleNoteTags} onTagClick={openTagSearch} onDelete={() => void deleteCurrentNote()} onSaveNow={() => void saveNoteNow()}/>}
+            {page === 'quests' && <QuestsPage quests={data.quests} openQuestId={openQuestId} onSave={saveQuest} onDelete={deleteQuest} onTagClick={openTagSearch}/>}
+            {page === 'vault' && <VaultPage currency={data.currency} loot={data.loot} onCurrencySave={saveCurrency} onSaveLoot={saveLoot} onDeleteLoot={deleteLoot} onTagClick={openTagSearch}/>}
             {page === 'npcs' && <NpcsPage npcs={data.npcs} logs={data.npcLogs} openNpcId={openNpcId} onSaveNpc={saveNpc} onDeleteNpc={deleteNpc} onSaveLog={saveNpcLog}/>}
+            {page === 'search' && <SearchPage query={searchQuery} onQueryChange={setSearchQuery} results={searchResults} searching={searching} allCampaigns={allCampaignsSearch} onAllCampaignsChange={setAllCampaignsSearch} onOpenResult={result => { void openResult(result).catch(error => notify(error instanceof Error ? error.message : 'Could not open search result', true)) }} onResultTags={editSearchTags} onTagClick={openTagSearch} onOpenSearch={openFullSearch}/> }
             {page === 'character' && <CharacterSheetPage character={data.character} characters={data.characters} abilities={data.abilities} onSave={saveCharacterSheet} onCreateCharacter={createCharacter} onSelectCharacter={selectCharacter} onDeleteCharacter={deleteCharacter}/>}
           </main>
           <aside className="right-rail hidden min-h-0 max-h-full w-[302px] shrink-0 flex-col gap-4 overflow-y-auto overscroll-contain border-l border-white/[.06] p-4 xl:flex">

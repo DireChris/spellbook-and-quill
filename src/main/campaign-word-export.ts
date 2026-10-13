@@ -93,7 +93,7 @@ function bullet(value: string, checked?: boolean): Paragraph {
 }
 function tagsLine(tags: unknown): Paragraph | null {
   if (!Array.isArray(tags) || tags.length === 0) return null
-  return paragraph(`Tags: ${tags.map(text).filter(Boolean).map(tag => `#${tag}`).join(', ')}`, { italic: true, color: MUTED, after: 120 })
+  return paragraph(`Tags: ${tags.map(text).filter(Boolean).map(tag => `[${tag}]`).join(', ')}`, { italic: true, color: MUTED, after: 120 })
 }
 
 // Tiptap notes are stored as HTML. Preserve block boundaries, lists and callouts
@@ -108,7 +108,7 @@ function richTextParagraphs(html: unknown): Paragraph[] {
     .replace(/<br\s*\/?\s*>/gi, '\n')
     .replace(/<\/(p|div|ul|ol|pre|table|tr)>/gi, '\n')
     .replace(/<[^>]*>/g, '')
-  const decoded = decodeEntities(source).replace(/\r/g, '\n')
+  const decoded = decodeEntities(source).replace(/\r/g, '\n').replace(/(^|\s)#([\p{L}\p{N}_-]{1,32})(?=\s|[.,!?;:)\]\}])/gu, '$1[$2]')
   const blocks = decoded.split(/\n+/).map(block => block.trim()).filter(Boolean)
   if (!blocks.length) return [paragraph('No content recorded.', { italic: true, color: MUTED })]
 

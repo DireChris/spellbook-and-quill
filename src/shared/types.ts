@@ -42,8 +42,9 @@ export type CharacterStatsInput = Omit<CharacterStats, 'id'> & { id?: number }
 export interface AbilityInput { id?: number; name: string; kind: Ability['kind']; detail: string; formula: string; uses: string }
 export interface RollLog { id: number; abilityName: string; formula: string; rolls: number[]; modifier: number; total: number; detail: string; createdAt: string }
 export interface SearchResult {
-  entityType: EntityType; id: number; title: string; excerpt: string; updatedAt: string; tags: string[]; meta?: string; campaignId?: number; campaignName?: string
+  entityType: EntityType; id: number; title: string; excerpt: string; updatedAt: string; tags: string[]; meta?: string; campaignId?: number; campaignName?: string; matchTerm?: string; matchKind?: 'text' | 'tag' | 'both'
 }
+export interface RelatedTag { name: string; count: number }
 export interface DashboardData {
   campaign: Campaign; characters: CharacterStats[]; notes: Note[]; quests: Quest[]; npcs: Npc[]; npcLogs: NpcLog[]; loot: LootItem[];
   currency: Currency; abilities: Ability[]; character: CharacterStats; rolls: RollLog[]; scratch: string

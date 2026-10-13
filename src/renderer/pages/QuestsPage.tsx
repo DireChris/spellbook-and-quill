@@ -3,11 +3,11 @@ import type { ReactNode } from 'react'
 import { BookOpen, Check, Circle, Flag, Plus, Save, ScrollText, Trash2, X } from 'lucide-react'
 import type { Quest, QuestInput, QuestStatus } from '../../shared/types'
 
-interface Props { quests: Quest[]; openQuestId?: number | null; onSave: (quest: QuestInput) => Promise<Quest>; onDelete: (id: number) => Promise<void> }
+interface Props { quests: Quest[]; openQuestId?: number | null; onSave: (quest: QuestInput) => Promise<Quest>; onDelete: (id: number) => Promise<void>; onTagClick: (tag: string) => void }
 const emptyQuest = (): QuestInput => ({ name: '', giver: '', status: 'In Progress', rewards: '', notes: '', objectives: [{ title: '', done: false, isSide: false }] })
 function draftFromQuest(q: Quest): QuestInput { return { id:q.id,name:q.name,giver:q.giver,status:q.status,rewards:q.rewards,notes:q.notes,objectives:q.objectives.map(o=>({id:o.id,title:o.title,done:o.done,isSide:o.isSide})) } }
 const statusOptions: QuestStatus[] = ['In Progress','Completed','Failed','On Hold']
-export function QuestsPage({ quests, openQuestId, onSave, onDelete }: Props) {
+export function QuestsPage({ quests, openQuestId, onSave, onDelete, onTagClick }: Props) {
   const [draft, setDraft] = useState<QuestInput | null>(null)
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState<'All' | QuestStatus>('All')
@@ -35,7 +35,7 @@ export function QuestsPage({ quests, openQuestId, onSave, onDelete }: Props) {
                     {quest.objectives.length>4&&<div className="pl-6 text-[9px] text-white/30">+{quest.objectives.length-4} more objectives</div>}
                     {!quest.objectives.length&&<p className="text-[10px] text-white/25">No objectives logged.</p>}
                   </div></div>
-                  <div className="rounded-lg border border-white/[.05] bg-black/15 p-3"><div className="section-eyebrow mb-2">Reward &amp; notes</div><p className="whitespace-pre-wrap text-[10px] leading-5 text-white/55">{quest.rewards || 'Reward unknown'}{quest.notes ? `\n\n${quest.notes}` : ''}</p><div className="mt-3 flex flex-wrap gap-1">{quest.tags.map(t=><span key={t} className="tag-chip tag-chip-compact">#{t}</span>)}</div></div>
+                  <div className="rounded-lg border border-white/[.05] bg-black/15 p-3"><div className="section-eyebrow mb-2">Reward &amp; notes</div><p className="whitespace-pre-wrap text-[10px] leading-5 text-white/55">{quest.rewards || 'Reward unknown'}{quest.notes ? `\n\n${quest.notes}` : ''}</p><div className="mt-3 flex flex-wrap gap-1">{quest.tags.map(t=><button key={t} type="button" onClick={() => onTagClick(t)} className="tag-chip tag-chip-compact tag-clickable">[{t}]</button>)}</div></div>
                 </div>
               </article>
             })}

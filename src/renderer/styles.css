@@ -68,6 +68,10 @@ button:disabled { cursor: not-allowed; }
 .status-on-hold { color:#a6b9cd; border-color:rgba(166,185,205,.16); background:rgba(166,185,205,.07); }
 .quest-board-row { transition:background .15s; }
 .tag-chip { display:inline-flex; align-items:center; gap:2px; max-width:100%; border:1px solid rgba(211,180,110,.13); border-radius:6px; padding:4px 5px 4px 6px; background:rgba(211,180,110,.055); color:rgba(225,204,157,.8); font-size:10px; line-height:1; }
+.tag-open { display:inline-flex; align-items:center; gap:1px; min-width:0; color:inherit; text-align:left; }
+.tag-clickable { cursor:pointer; }
+.tag-clickable:hover { border-color:rgba(211,180,110,.32); color:#e2c98a; }
+.search-match { border-radius:3px; padding:0 1px; color:#f2e4bd; background:rgba(211,180,110,.22); }
 .tag-chip-compact { border-color:rgba(211,180,110,.1); padding:3px 4px; font-size:9px; }
 .tag-remove { display:inline-flex; margin-left:2px; align-items:center; justify-content:center; color:rgba(255,255,255,.25); opacity:0; transition:opacity .15s,color .15s; }
 .tag-chip:hover .tag-remove { opacity:1; }
@@ -107,6 +111,9 @@ button:disabled { cursor: not-allowed; }
 .prose-note li { padding-left:.25rem; }
 .prose-note li + li { margin-top:.35rem; }
 .prose-note a { color:#d3b46e; text-decoration:underline; }
+.prose-note { cursor:text; }
+.inline-tag-token { display:inline; cursor:pointer; border:1px solid rgba(211,180,110,.2); border-radius:4px; padding:0 2px; color:#e2c98a; background:rgba(211,180,110,.075); white-space:nowrap; }
+.inline-tag-token:hover { border-color:rgba(211,180,110,.45); background:rgba(211,180,110,.15); }
 .prose-note blockquote { position:relative; margin:1.45rem 0; border:1px solid rgba(211,180,110,.16); border-left:3px solid #b89652; border-radius:0 10px 10px 0; padding:25px 18px 15px; color:#e7d6aa; background:linear-gradient(100deg,rgba(173,139,72,.105),rgba(173,139,72,.025)); font-family:Georgia,serif; font-size:14px; font-style:italic; line-height:1.85; }
 .prose-note blockquote::before { position:absolute; top:8px; left:18px; color:rgba(211,180,110,.62); content:"READ ALOUD"; font-family:Inter,ui-sans-serif,sans-serif; font-size:8px; font-style:normal; font-weight:700; letter-spacing:.17em; }
 .prose-note blockquote p { margin:0; }

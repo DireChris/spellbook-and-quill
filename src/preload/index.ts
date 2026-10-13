@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AbilityInput, Ability, Campaign, CampaignBackup, CampaignInput, CharacterStats, CharacterStatsInput, Currency, DashboardData, EntityType, LootInput, LootItem, Note, NoteInput, Npc, NpcInput, NpcLog, NpcLogInput,
-  Quest, QuestInput, RollLog, SearchResult, TagInput, WorkspaceState,
+  Quest, QuestInput, RelatedTag, RollLog, SearchResult, TagInput, WorkspaceState,
 } from '../shared/types'
 
 const api = {
@@ -15,6 +15,7 @@ const api = {
   exportCampaignWord: (): Promise<{ cancelled: boolean; filePath?: string }> => ipcRenderer.invoke('campaigns:export-word'),
   importCampaignBackup: (backup: CampaignBackup): Promise<Campaign> => ipcRenderer.invoke('campaigns:import-backup', backup),
   search: (query: string, allCampaigns = false): Promise<SearchResult[]> => ipcRenderer.invoke('search:all', query, allCampaigns),
+  relatedTags: (tag: string, allCampaigns = false): Promise<RelatedTag[]> => ipcRenderer.invoke('search:related-tags', tag, allCampaigns),
   saveNote: (input: NoteInput): Promise<Note> => ipcRenderer.invoke('note:save', input),
   deleteNote: (id: number): Promise<boolean> => ipcRenderer.invoke('note:delete', id),
   saveQuest: (input: QuestInput): Promise<Quest> => ipcRenderer.invoke('quest:save', input),
