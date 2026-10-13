@@ -1,0 +1,228 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
+import { ImagePlus, MapPin, MessageSquareText, Pencil, Plus, Save, Search, Swords, Trash2, UserRound, Users, X } from 'lucide-react'
+import type { Npc, NpcInput, NpcLog, NpcLogInput, Standing } from '../../shared/types'
+
+interface Props {
+  npcs: Npc[]
+  logs: NpcLog[]
+  openNpcId?: number | null
+  onSaveNpc: (input: NpcInput) => Promise<Npc>
+  onDeleteNpc: (id: number) => Promise<void>
+  onSaveLog: (input: NpcLogInput) => Promise<void>
+}
+
+const newNpc = (): NpcInput => ({ name: '', faction: '', location: '', standing: 'Neutral', notes: '', imageData: '' })
+const npcDraft = (npc: Npc): NpcInput => ({ id: npc.id, name: npc.name, faction: npc.faction, location: npc.location, standing: npc.standing, notes: npc.notes, imageData: npc.imageData || '' })
+const standingOptions: Standing[] = ['Friendly', 'Neutral', 'Hostile']
+
+async function imageToDataUrl(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.')
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const image = new Image()
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('This image could not be opened. Try a JPEG, PNG or WebP image.'))
+      image.src = objectUrl
+    })
+    const limit = 900
+    const ratio = Math.min(1, limit / image.naturalWidth, limit / image.naturalHeight)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio))
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio))
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Your system could not prepare this image.')
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    const data = canvas.toDataURL('image/jpeg', 0.78)
+    if (data.length > 2_500_000) throw new Error('This image is still too large after resizing. Try a smaller file.')
+    return data
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+export function NpcsPage({ npcs, logs, openNpcId, onSaveNpc, onDeleteNpc, onSaveLog }: Props) {
+  const [filter, setFilter] = useState('')
+  const [selectedId, setSelectedId] = useState<number | null>(npcs[0]?.id ?? null)
+  const [draft, setDraft] = useState<NpcInput | null>(null)
+  const [logTitle, setLogTitle] = useState('')
+  const [logContent, setLogContent] = useState('')
+  const [editingLogId, setEditingLogId] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [formMessage, setFormMessage] = useState<{ text: string; error?: boolean } | null>(null)
+  const imageInput = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!selectedId && npcs.length) setSelectedId(npcs[0].id)
+    if (selectedId && !npcs.some(npc => npc.id === selectedId)) setSelectedId(npcs[0]?.id ?? null)
+  }, [npcs, selectedId])
+
+  useEffect(() => {
+    if (openNpcId && npcs.some(npc => npc.id === openNpcId)) {
+      setSelectedId(openNpcId)
+      setDraft(null)
+      setEditingLogId(null)
+      setLogTitle('')
+      setLogContent('')
+    }
+  }, [openNpcId, npcs])
+
+  const filtered = useMemo(
+    () => npcs.filter(npc => `${npc.name} ${npc.faction} ${npc.location} ${npc.notes}`.toLowerCase().includes(filter.toLowerCase())),
+    [npcs, filter],
+  )
+  const selected = npcs.find(npc => npc.id === selectedId) ?? null
+  const selectedLogs = logs.filter(log => (selected && log.npcId === selected.id) || (!log.npcId && selected && log.npcName.toLowerCase() === selected.name.toLowerCase()))
+  const update = <K extends keyof NpcInput>(key: K, value: NpcInput[K]) => setDraft(previous => previous ? ({ ...previous, [key]: value }) : previous)
+
+  const startEdit = () => {
+    if (!selected) return
+    setDraft(npcDraft(selected))
+    setFormMessage(null)
+  }
+  const saveNpc = async () => {
+    if (!draft?.name.trim()) return
+    setSaving(true)
+    setFormMessage(null)
+    try {
+      const saved = await onSaveNpc(draft)
+      setSelectedId(saved.id)
+      setDraft(null)
+      setFormMessage(null)
+    } catch (error) {
+      setFormMessage({ text: error instanceof Error ? error.message : 'NPC could not be saved.', error: true })
+    } finally {
+      setSaving(false)
+    }
+  }
+  const removeNpc = async () => {
+    if (!draft?.id) return
+    if (!window.confirm(`Delete ${draft.name} from the directory?`)) return
+    setSaving(true)
+    try {
+      await onDeleteNpc(draft.id)
+      setDraft(null)
+      setSelectedId(null)
+      setFormMessage(null)
+    } catch (error) {
+      setFormMessage({ text: error instanceof Error ? error.message : 'NPC could not be removed.', error: true })
+    } finally {
+      setSaving(false)
+    }
+  }
+  const pickImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setFormMessage(null)
+    try {
+      update('imageData', await imageToDataUrl(file))
+      setFormMessage({ text: 'Portrait ready. Save the NPC to keep it.' })
+    } catch (error) {
+      setFormMessage({ text: error instanceof Error ? error.message : 'Portrait could not be loaded.', error: true })
+    } finally {
+      event.target.value = ''
+    }
+  }
+
+  const clearLogEditor = () => { setEditingLogId(null); setLogTitle(''); setLogContent('') }
+  const editLog = (log: NpcLog) => { setEditingLogId(log.id); setLogTitle(log.title); setLogContent(log.content) }
+  const saveLog = async () => {
+    if (!selected || (!logTitle.trim() && !logContent.trim())) return
+    setSaving(true)
+    setFormMessage(null)
+    try {
+      await onSaveLog({ id: editingLogId ?? undefined, npcId: selected.id, npcName: selected.name, title: logTitle.trim() || 'Field note', content: logContent })
+      clearLogEditor()
+    } catch (error) {
+      setFormMessage({ text: error instanceof Error ? error.message : 'Conversation entry could not be saved.', error: true })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="npc-directory-main h-full min-h-0 overflow-x-hidden overflow-y-auto px-6 pb-8 pt-8 xl:px-8 xl:pb-10 xl:pt-10">
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <div>
+          <div className="mb-1.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.2em] text-brass-300"><Users size={12} /> Faces in the story</div>
+          <h1 className="font-display text-2xl tracking-[-.03em] text-parchment">NPC &amp; faction directory</h1>
+          <p className="mt-1.5 text-[11px] text-white/40">A name is never just a name. Remember who holds the thread.</p>
+        </div>
+        <button onClick={() => { setDraft(newNpc()); setFormMessage(null) }} className="primary-button shrink-0"><Plus size={14} /> Add NPC</button>
+      </div>
+
+      <div className="grid min-h-0 items-start gap-5 xl:grid-cols-[310px_minmax(0,1fr)]">
+        <section className="panel-card overflow-hidden">
+          <div className="border-b border-white/[.06] p-3.5">
+            <div className="flex h-9 items-center gap-2 rounded-lg border border-white/[.06] bg-black/20 px-3"><Search size={13} className="text-white/30" /><input value={filter} onChange={event => setFilter(event.target.value)} className="min-w-0 flex-1 bg-transparent text-[11px] text-parchment outline-none placeholder:text-white/25" placeholder="Find a name or faction…" /></div>
+            <div className="mt-2 px-1 text-[9px] uppercase tracking-[.15em] text-white/30">Known faces <span className="ml-1">{filtered.length}</span></div>
+          </div>
+          <div className="max-h-[62vh] space-y-1 overflow-y-auto p-2">
+            {filtered.map(npc => (
+              <button key={npc.id} onClick={() => { setSelectedId(npc.id); setDraft(null); setEditingLogId(null); setLogTitle(''); setLogContent(''); setFormMessage(null) }} className={`npc-list-item ${selectedId === npc.id && !draft ? 'npc-list-item-active' : ''}`}>
+                <div className={`npc-avatar overflow-hidden standing-${npc.standing.toLowerCase()}`}>{npc.imageData ? <img src={npc.imageData} alt="" className="npc-portrait-image" /> : <UserRound size={15} />}</div>
+                <div className="min-w-0 flex-1 text-left"><div className="truncate text-[11px] font-medium text-parchment">{npc.name}</div><div className="mt-1 truncate text-[9px] text-white/35">{npc.faction || 'No faction recorded'}</div><div className="mt-1 flex items-center gap-1 text-[9px] text-white/30"><MapPin size={9} />{npc.location || 'Location unknown'}</div></div>
+                <span className={`standing-dot standing-dot-${npc.standing.toLowerCase()}`} title={npc.standing} />
+              </button>
+            ))}
+            {!filtered.length && <div className="px-3 py-8 text-center text-[10px] text-white/35">No one by that name.</div>}
+          </div>
+        </section>
+
+        <section className="min-w-0">
+          {draft ? (
+            <div className="panel-card overflow-hidden rounded-xl">
+              <div className="flex items-center justify-between border-b border-white/[.06] px-5 py-4"><div><div className="section-eyebrow">Character record</div><h2 className="mt-1 font-display text-lg text-parchment">{draft.id ? 'Edit contact' : 'Add a new face'}</h2></div><button className="icon-button" onClick={() => { setDraft(null); setFormMessage(null) }} aria-label="Cancel edit"><X size={14} /></button></div>
+              <div className="grid gap-4 p-5 md:grid-cols-2">
+                <div className="md:col-span-2 rounded-xl border border-white/[.06] bg-black/15 p-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="npc-edit-portrait">{draft.imageData ? <img src={draft.imageData} alt="NPC portrait preview" className="npc-portrait-image" /> : <UserRound size={28} />}</div>
+                    <div className="min-w-0 flex-1"><div className="field-label mb-1">Portrait image</div><p className="text-[10px] leading-5 text-white/35">Choose a local image. It is resized and stored with this NPC on this device.</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={() => imageInput.current?.click()} className="secondary-button"><ImagePlus size={13} />{draft.imageData ? 'Change portrait' : 'Add portrait'}</button>{draft.imageData && <button type="button" onClick={() => { update('imageData', ''); setFormMessage({ text: 'Portrait removed. Save the NPC to apply the change.' }) }} className="secondary-button"><Trash2 size={12} /> Remove image</button>}</div></div>
+                    <input ref={imageInput} className="hidden" type="file" accept="image/*" onChange={event => void pickImage(event)} />
+                  </div>
+                </div>
+                <Field label="Name"><input autoFocus value={draft.name} onChange={event => update('name', event.target.value)} placeholder="An unlikely ally…" className="field-input" /></Field>
+                <Field label="Faction"><input value={draft.faction} onChange={event => update('faction', event.target.value)} placeholder="Guild, house, order…" className="field-input" /></Field>
+                <Field label="Location"><input value={draft.location} onChange={event => update('location', event.target.value)} placeholder="Where to find them" className="field-input" /></Field>
+                <Field label="Standing / attitude"><select value={draft.standing} onChange={event => update('standing', event.target.value as Standing)} className="field-input">{standingOptions.map(standing => <option key={standing}>{standing}</option>)}</select></Field>
+                <div className="md:col-span-2"><Field label="Notes"><textarea rows={6} value={draft.notes} onChange={event => update('notes', event.target.value)} placeholder="Appearance, motives, what they know, favours owed…" className="field-input resize-y" /></Field></div>
+                {formMessage && <div className={`md:col-span-2 text-[11px] ${formMessage.error ? 'text-rose-300' : 'text-brass-300'}`}>{formMessage.text}</div>}
+                <div className="flex gap-2 md:col-span-2"><button onClick={() => void saveNpc()} disabled={saving || !draft.name.trim()} className="primary-button flex-1 justify-center disabled:opacity-40"><Save size={13} />{saving ? 'Saving…' : 'Save NPC'}</button>{draft.id && <button onClick={() => void removeNpc()} disabled={saving} className="secondary-button"><Trash2 size={12} /> Remove contact</button>}</div>
+              </div>
+            </div>
+          ) : selected ? (
+            <div className="space-y-5">
+              <article className="panel-card overflow-hidden rounded-xl">
+                <header className="npc-profile-banner relative flex min-h-[132px] flex-wrap items-center justify-between gap-4 px-5 py-4">
+                  <div className="relative z-10 flex min-w-0 items-center gap-3">
+                    <div className="npc-profile-portrait">{selected.imageData ? <img src={selected.imageData} alt={`${selected.name} portrait`} className="npc-portrait-image" /> : <Swords size={25} />}</div>
+                    <div className="min-w-0"><div className="section-eyebrow">Person of interest</div><h2 className="mt-1 break-words font-display text-xl tracking-[-.03em] text-parchment sm:text-2xl">{selected.name}</h2><div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-white/45"><span>{selected.faction || 'Independent'}</span><span className="text-white/15">·</span><span className="flex items-center gap-1"><MapPin size={10} />{selected.location || 'Location unknown'}</span></div></div>
+                  </div>
+                  <div className="relative z-10 flex shrink-0 flex-wrap items-center gap-2"><span className={`standing-pill standing-pill-${selected.standing.toLowerCase()}`}>{selected.standing}</span><button type="button" onClick={startEdit} className="secondary-button !bg-black/40"><Pencil size={12} /> Edit profile</button></div>
+                </header>
+                <div className="px-5 pb-5 pt-5">
+                  <div className="grid gap-3 sm:grid-cols-3"><InfoTile label="Faction / allegiance" value={selected.faction || 'Unrecorded'} /><InfoTile label="Last known location" value={selected.location || 'Unknown'} /><InfoTile label="Current attitude" value={selected.standing} /></div>
+                  <div className="mt-5"><div className="section-eyebrow mb-2">Field notes</div><p className="whitespace-pre-wrap break-words text-xs leading-6 text-white/60">{selected.notes || 'Nothing has been written about this person yet.'}</p></div>
+                  <div className="mt-4 flex justify-end"><button onClick={() => { if (window.confirm(`Remove ${selected.name} from the directory?`)) void onDeleteNpc(selected.id).then(() => setSelectedId(null)) }} className="text-[10px] text-white/25 hover:text-rose-300">Remove from directory</button></div>
+                </div>
+              </article>
+
+              <div className="panel-card overflow-hidden rounded-xl">
+                <div className="flex items-center justify-between border-b border-white/[.06] px-5 py-4"><div><div className="section-eyebrow">Conversation ledger</div><h3 className="mt-1 font-display text-lg text-parchment">NPC logs <span className="text-sm text-white/30">({selectedLogs.length})</span></h3></div><MessageSquareText size={16} className="text-brass-300" /></div>
+                <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_280px]">
+                  <div className="divide-y divide-white/[.05]">{selectedLogs.map(log => <LogRow key={log.id} log={log} onEdit={editLog} />)}{!selectedLogs.length && <div className="px-5 py-8 text-center text-[10px] text-white/30">No encounters recorded with {selected.name} yet.</div>}</div>
+                  <div className="border-t border-white/[.06] bg-black/15 p-4 lg:border-l lg:border-t-0"><div className="mb-3 flex items-center gap-2"><div className="icon-tile icon-tile-amber"><MessageSquareText size={13} /></div><div className="text-xs font-medium text-parchment">{editingLogId ? 'Edit conversation' : 'Record an encounter'}</div></div><input value={logTitle} onChange={event => setLogTitle(event.target.value)} placeholder="Log title" className="field-input mb-2" /><textarea value={logContent} onChange={event => setLogContent(event.target.value)} rows={5} placeholder="What was said? What felt off?" className="field-input resize-y" /><button disabled={saving || (!logTitle.trim() && !logContent.trim())} onClick={() => void saveLog()} className="primary-button mt-2 w-full justify-center disabled:opacity-40">{editingLogId ? <Save size={12} /> : <Plus size={12} />}{saving ? 'Saving…' : editingLogId ? 'Save changes' : 'Add to log'}</button>{editingLogId && <button type="button" onClick={clearLogEditor} className="secondary-button mt-2 w-full justify-center"><X size={12} /> Cancel edit</button>}</div>
+                </div>
+              </div>
+            </div>
+          ) : <div className="panel-card flex min-h-[360px] flex-col items-center justify-center p-10 text-center"><Users size={26} className="text-white/20" /><h2 className="mt-4 font-display text-xl text-parchment">No contact selected</h2><p className="mt-2 max-w-[260px] text-xs leading-5 text-white/35">Choose someone in the directory, or add a new NPC to get started.</p><button onClick={() => { setDraft(newNpc()); setFormMessage(null) }} className="primary-button mt-4"><Plus size={13} /> Add NPC</button></div>}
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) { return <div><label className="field-label mb-1.5 block">{label}</label>{children}</div> }
+function InfoTile({ label, value }: { label: string; value: string }) { return <div className="min-w-0 rounded-lg border border-white/[.06] bg-black/15 px-3 py-3"><div className="text-[9px] uppercase tracking-[.12em] text-white/30">{label}</div><div className="mt-1.5 whitespace-normal break-words text-[11px] leading-5 text-parchment">{value}</div></div> }
+function LogRow({ log, onEdit }: { log: NpcLog; onEdit: (log: NpcLog) => void }) { return <div className="flex gap-3 px-5 py-4"><div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[.04] text-white/35"><MessageSquareText size={13} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h4 className="break-words text-xs font-medium text-parchment">{log.title}</h4><span className="text-[9px] text-white/25">{new Date(log.createdAt).toLocaleDateString()}</span><button type="button" onClick={() => onEdit(log)} className="ml-auto inline-flex items-center gap-1 text-[9px] text-white/35 hover:text-brass-300"><Pencil size={10} /> Edit</button></div><p className="mt-1.5 whitespace-pre-wrap break-words text-[10px] leading-5 text-white/45">{log.content || 'No further details.'}</p></div></div> }
