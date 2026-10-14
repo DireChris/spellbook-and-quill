@@ -9,6 +9,11 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach installer to (e.g. v1.2.1)'
+        required: true
+        default: 'v1.2.1'
 
 permissions:
   contents: write
@@ -25,7 +30,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: npm install
@@ -38,3 +43,4 @@ jobs:
         with:
           files: "release/*.exe"
           fail_on_unmatched_files: true
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
