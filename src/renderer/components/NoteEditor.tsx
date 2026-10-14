@@ -7,7 +7,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
-import { Bold, Heading2, Italic, List, ListOrdered, Quote, Save, Sparkles, Tag, Trash2, Underline as UnderlineIcon, Strikethrough, Code2, Link2, Undo2, Redo2 } from 'lucide-react'
+import { Bold, Heading1, Heading2, Italic, List, ListOrdered, Quote, Save, Sparkles, Tag, Trash2, Underline as UnderlineIcon, Strikethrough, Code2, Link2, Undo2, Redo2 } from 'lucide-react'
 import type { Note } from '../../shared/types'
 import { TagEditor } from './TagEditor'
 
@@ -37,6 +37,7 @@ interface NoteEditorProps {
   note: Note
   knownTags: string[]
   onTitleChange: (title: string) => void
+  onSessionNumberChange: (sessionNumber: number | null) => void
   onContentChange: (html: string) => void
   onTagsChange: (tags: string[]) => void
   onTagClick: (tag: string) => void
@@ -45,7 +46,7 @@ interface NoteEditorProps {
   onSaveNow: () => void
 }
 
-export function NoteEditor({ note, knownTags, onTitleChange, onContentChange, onTagsChange, onTagClick, onDelete, saving, onSaveNow }: NoteEditorProps) {
+export function NoteEditor({ note, knownTags, onTitleChange, onSessionNumberChange, onContentChange, onTagsChange, onTagClick, onDelete, saving, onSaveNow }: NoteEditorProps) {
   const [tagPicker, setTagPicker] = useState<{ query: string; from: number; to: number } | null>(null)
   const syncedTagsRef = useRef<string[]>(note.tags.slice())
   useEffect(() => { syncedTagsRef.current = note.tags.slice() }, [note.id, note.tags.join('|')])
@@ -103,7 +104,7 @@ export function NoteEditor({ note, knownTags, onTitleChange, onContentChange, on
     setTagPicker(null)
   }
   const ToolbarButton = ({ title, active, onClick, children }: { title: string; active?: boolean; onClick: () => void; children: ReactNode }) => (
-    <button type="button" title={title} onClick={onClick} className={`toolbar-button ${active ? 'toolbar-button-active' : ''}`}>{children}</button>
+    <button type="button" title={title} onMouseDown={event => event.preventDefault()} onClick={onClick} className={`toolbar-button ${active ? 'toolbar-button-active' : ''}`}>{children}</button>
   )
 
   return (
@@ -117,7 +118,7 @@ export function NoteEditor({ note, knownTags, onTitleChange, onContentChange, on
             {note.id > 0 && <button onClick={onDelete} title="Delete note" className="icon-button hover:!text-rose-300"><Trash2 size={14} /></button>}
           </div>
         </div>
-        <input value={note.title} onChange={e => onTitleChange(e.target.value)} placeholder="Untitled chronicle" className="w-full bg-transparent font-display text-[27px] tracking-[-.03em] text-parchment outline-none placeholder:text-white/20" />
+        <div className="flex items-center gap-4"><input value={note.title} onChange={e => onTitleChange(e.target.value)} placeholder="Untitled chronicle" className="min-w-0 flex-1 bg-transparent font-display text-[27px] tracking-[-.03em] text-parchment outline-none placeholder:text-white/20" />{note.kind === 'session' && <label className="flex shrink-0 items-center gap-2 text-[10px] uppercase tracking-[.12em] text-white/40"><span>Session #</span><input aria-label="Session number" type="number" min={1} step={1} value={note.sessionNumber ?? ''} onChange={event => { const raw = event.target.value; onSessionNumberChange(raw.trim() === '' ? null : Math.max(1, Math.floor(Number(raw)))) }} className="w-[72px] rounded-lg border border-white/10 bg-white/[.035] px-2 py-2 text-sm normal-case tracking-normal text-parchment outline-none focus:border-brass-400/50" placeholder="—" /></label>}</div>
         <div className="mt-4 flex items-center gap-3"><Tag size={13} className="shrink-0 text-white/35" /><div className="flex-1"><TagEditor tags={note.tags} onChange={onTagsChange} onTagClick={onTagClick} dataTagInput="note" placeholder="Add tags · Ctrl+T" /></div></div>
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -129,7 +130,8 @@ export function NoteEditor({ note, knownTags, onTitleChange, onContentChange, on
           <ToolbarButton title="Inline code" active={editor?.isActive('code')} onClick={() => editor?.chain().focus().toggleCode().run()}><Code2 size={15} /></ToolbarButton>
           <ToolbarButton title="Link / unlink" active={editor?.isActive('link')} onClick={() => { if (!editor) return; const href = editor.getAttributes('link').href; if (href) editor.chain().focus().unsetLink().run(); else { const url = window.prompt('Enter a link URL (https://…)'); if (url) editor.chain().focus().setLink({ href: url }).run() } }}><Link2 size={15} /></ToolbarButton>
           <span className="mx-1 h-4 w-px bg-white/10" />
-          <ToolbarButton title="Heading" active={editor?.isActive('heading', { level: 2 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={15} /></ToolbarButton>
+          <ToolbarButton title="Heading 1" active={editor?.isActive('heading', { level: 1 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={15} /></ToolbarButton>
+          <ToolbarButton title="Heading 2" active={editor?.isActive('heading', { level: 2 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={15} /></ToolbarButton>
           <ToolbarButton title="Bulleted list" active={editor?.isActive('bulletList')} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={15} /></ToolbarButton>
           <ToolbarButton title="Numbered list" active={editor?.isActive('orderedList')} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered size={15} /></ToolbarButton>
           <ToolbarButton title="Read-aloud callout" active={editor?.isActive('blockquote')} onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote size={15} /></ToolbarButton>

@@ -9,6 +9,7 @@ export interface Note extends Taggable {
   title: string
   content: string
   kind: NoteKind
+  sessionNumber: number | null
   createdAt: string
   updatedAt: string
 }
@@ -51,7 +52,7 @@ export interface DashboardData {
 }
 export interface CampaignBackup { format: 'spellbook-and-quill-campaign'; version: 1; exportedAt: string; campaign: CampaignInput; content: Record<string, unknown> }
 
-export interface NoteInput { id?: number; title: string; content: string; kind?: NoteKind }
+export interface NoteInput { id?: number; title: string; content: string; kind?: NoteKind; sessionNumber?: number | null }
 export interface QuestInput {
   id?: number; name: string; giver: string; status: QuestStatus; rewards: string; notes: string;
   objectives: Array<{ id?: number; title: string; done: boolean; isSide: boolean }>

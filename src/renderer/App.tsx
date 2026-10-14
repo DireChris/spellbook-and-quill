@@ -49,9 +49,9 @@ export default function App() {
   }, [])
 
   const persistSnapshot = useCallback(async (snapshot: Note) => {
-    const saved = await window.spellbook.saveNote({ id: snapshot.id || undefined, title: snapshot.title, content: snapshot.content, kind: snapshot.kind })
+    const saved = await window.spellbook.saveNote({ id: snapshot.id || undefined, title: snapshot.title, content: snapshot.content, kind: snapshot.kind, sessionNumber: snapshot.sessionNumber })
     setData(prev => prev ? ({ ...prev, notes: [saved, ...prev.notes.filter(note => note.id !== saved.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) }) : prev)
-    setSelectedNote(prev => prev && prev.id === snapshot.id ? { ...prev, id: saved.id, updatedAt: saved.updatedAt } : prev)
+    setSelectedNote(prev => prev && prev.id === snapshot.id ? { ...prev, id: saved.id, updatedAt: saved.updatedAt, sessionNumber: saved.sessionNumber } : prev)
     return saved
   }, [])
 
@@ -83,7 +83,7 @@ export default function App() {
   useEffect(() => {
     if (page !== 'notes' || !selectedNote) return
     if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current)
-    const snapshot: NoteInput = { id: selectedNote.id || undefined, title: selectedNote.title, content: selectedNote.content, kind: selectedNote.kind }
+    const snapshot: NoteInput = { id: selectedNote.id || undefined, title: selectedNote.title, content: selectedNote.content, kind: selectedNote.kind, sessionNumber: selectedNote.sessionNumber }
     const sequence = ++noteSaveSequence.current
     autosaveTimer.current = window.setTimeout(async () => {
       setSavingNote(true)
@@ -92,13 +92,13 @@ export default function App() {
         setData(prev => prev ? ({ ...prev, notes: [saved, ...prev.notes.filter(note => note.id !== saved.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) }) : prev)
         setSelectedNote(prev => {
           if (!prev || prev.id !== (snapshot.id ?? 0)) return prev
-          return { ...prev, id: saved.id, updatedAt: saved.updatedAt }
+          return { ...prev, id: saved.id, updatedAt: saved.updatedAt, sessionNumber: saved.sessionNumber }
         })
       } catch { notify('Autosave failed. Your changes remain in the editor.', true) }
       finally { if (sequence === noteSaveSequence.current) setSavingNote(false) }
     }, 650)
     return () => { if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current) }
-  }, [page, selectedNote?.id, selectedNote?.title, selectedNote?.content, notify])
+  }, [page, selectedNote?.id, selectedNote?.title, selectedNote?.content, selectedNote?.sessionNumber, notify])
 
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
@@ -171,6 +171,7 @@ export default function App() {
     setSearchQuery('')
   }, [page, selectedNote, persistSnapshot])
   const handleTitleChange = useCallback((title: string) => setSelectedNote(prev => prev ? ({ ...prev, title }) : prev), [])
+  const handleSessionNumberChange = useCallback((sessionNumber: number | null) => setSelectedNote(prev => prev ? ({ ...prev, sessionNumber }) : prev), [])
   const handleContentChange = useCallback((content: string) => setSelectedNote(prev => prev ? ({ ...prev, content }) : prev), [])
   const handleNoteTags = useCallback(async (tags: string[]) => {
     if (!selectedNote?.id) return
@@ -184,8 +185,8 @@ export default function App() {
     if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current)
     setSavingNote(true)
     try {
-      const saved = await window.spellbook.saveNote({ id: selectedNote.id || undefined, title: selectedNote.title, content: selectedNote.content, kind: selectedNote.kind })
-      setSelectedNote(prev => prev ? ({ ...prev, id: saved.id, updatedAt: saved.updatedAt }) : prev)
+      const saved = await window.spellbook.saveNote({ id: selectedNote.id || undefined, title: selectedNote.title, content: selectedNote.content, kind: selectedNote.kind, sessionNumber: selectedNote.sessionNumber })
+      setSelectedNote(prev => prev ? ({ ...prev, id: saved.id, updatedAt: saved.updatedAt, sessionNumber: saved.sessionNumber }) : prev)
       setData(prev => prev ? ({ ...prev, notes: [saved, ...prev.notes.filter(n => n.id !== saved.id)] }) : prev)
       notify('Note saved locally')
     } catch { notify('Could not save note', true) } finally { setSavingNote(false) }
@@ -328,7 +329,7 @@ export default function App() {
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
             {page === 'dashboard' && <div className="h-full min-h-0 overflow-y-auto"><DashboardPage data={data} onNavigate={navigate} onOpenNote={note => { navigate('notes'); selectNote(note) }} onOpenQuest={quest => { setOpenQuestId(quest.id); navigate('quests') }} onExportWord={() => { void exportCurrentCampaignWord() }} onTagClick={openTagSearch}/></div>}
             {page === 'campaigns' && <CampaignsPage campaigns={workspace.campaigns} activeCampaignId={workspace.activeCampaignId} onSwitch={async id => { await switchCampaign(id) }} onCreate={createCampaign} onUpdate={updateCampaign} onDelete={deleteCampaign} onExportBackup={exportCampaignBackup} onImportBackup={importCampaignBackup}/>}
-            {page === 'notes' && <NotesPage notes={data.notes} selectedNote={selectedNote} knownTags={knownTags} saving={savingNote} onSelect={note => { selectNote(note) }} onCreate={() => void createNote().catch(() => notify('Could not create a note', true))} onTitleChange={handleTitleChange} onContentChange={handleContentChange} onTagsChange={handleNoteTags} onTagClick={openTagSearch} onDelete={() => void deleteCurrentNote()} onSaveNow={() => void saveNoteNow()}/>}
+            {page === 'notes' && <NotesPage notes={data.notes} selectedNote={selectedNote} knownTags={knownTags} saving={savingNote} onSelect={note => { selectNote(note) }} onCreate={() => void createNote().catch(() => notify('Could not create a note', true))} onTitleChange={handleTitleChange} onSessionNumberChange={handleSessionNumberChange} onContentChange={handleContentChange} onTagsChange={handleNoteTags} onTagClick={openTagSearch} onDelete={() => void deleteCurrentNote()} onSaveNow={() => void saveNoteNow()}/>}
             {page === 'quests' && <QuestsPage quests={data.quests} openQuestId={openQuestId} onSave={saveQuest} onDelete={deleteQuest} onTagClick={openTagSearch}/>}
             {page === 'vault' && <VaultPage currency={data.currency} loot={data.loot} onCurrencySave={saveCurrency} onSaveLoot={saveLoot} onDeleteLoot={deleteLoot} onTagClick={openTagSearch}/>}
             {page === 'npcs' && <NpcsPage npcs={data.npcs} logs={data.npcLogs} openNpcId={openNpcId} onSaveNpc={saveNpc} onDeleteNpc={deleteNpc} onSaveLog={saveNpcLog}/>}

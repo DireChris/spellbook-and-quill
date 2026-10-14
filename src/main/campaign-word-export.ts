@@ -175,7 +175,14 @@ function addTagsAndEmptyFallback(children: Paragraph[], tags: unknown) {
 export async function buildCampaignWordDocument(backup: CampaignBackup): Promise<Buffer> {
   const campaign = (backup.campaign ?? {}) as ArchiveRecord
   const content = (backup.content ?? {}) as ArchiveRecord
-  const notes = (Array.isArray(content.notes) ? content.notes : []) as ArchiveRecord[]
+  const notes = ((Array.isArray(content.notes) ? content.notes : []) as ArchiveRecord[]).slice().sort((a, b) => {
+    const aNumber = Number.isInteger(a.sessionNumber) && a.sessionNumber > 0 ? Number(a.sessionNumber) : null
+    const bNumber = Number.isInteger(b.sessionNumber) && b.sessionNumber > 0 ? Number(b.sessionNumber) : null
+    if (aNumber != null && bNumber != null) return aNumber - bNumber || text(a.createdAt).localeCompare(text(b.createdAt))
+    if (aNumber != null) return -1
+    if (bNumber != null) return 1
+    return text(a.createdAt).localeCompare(text(b.createdAt)) || text(a.title).localeCompare(text(b.title), undefined, { sensitivity: 'base' })
+  })
   const quests = (Array.isArray(content.quests) ? content.quests : []) as ArchiveRecord[]
   const npcs = (Array.isArray(content.npcs) ? content.npcs : []) as ArchiveRecord[]
   const npcLogs = (Array.isArray(content.npcLogs) ? content.npcLogs : []) as ArchiveRecord[]
@@ -230,7 +237,10 @@ export async function buildCampaignWordDocument(backup: CampaignBackup): Promise
   children.push(heading('Session journal & lore', 1))
   if (!notes.length) children.push(paragraph('No journal entries have been recorded.', { italic: true, color: MUTED }))
   for (const note of notes) {
-    children.push(heading(text(note.title) || 'Untitled note', 2))
+    const noteTitle = text(note.title) || 'Untitled note'
+    const sessionHeader = note.sessionNumber != null && Number.isInteger(Number(note.sessionNumber)) && Number(note.sessionNumber) > 0 ? `Session ${Number(note.sessionNumber)} - ${noteTitle}` : noteTitle
+    children.push(heading(sessionHeader, 2))
+    if (note.sessionNumber != null && Number.isInteger(Number(note.sessionNumber)) && Number(note.sessionNumber) > 0) children.push(keyValue('Session number', Number(note.sessionNumber)))
     children.push(keyValue('Type', text(note.kind) || 'session'))
     if (note.createdAt) children.push(keyValue('Created', dateLabel(note.createdAt)))
     if (note.updatedAt) children.push(keyValue('Last updated', dateLabel(note.updatedAt)))
