@@ -23,6 +23,7 @@ const api = {
   saveNpc: (input: NpcInput): Promise<Npc> => ipcRenderer.invoke('npc:save', input),
   deleteNpc: (id: number): Promise<boolean> => ipcRenderer.invoke('npc:delete', id),
   saveNpcLog: (input: NpcLogInput): Promise<NpcLog> => ipcRenderer.invoke('npc-log:save', input),
+  deleteNpcLog: (id: number): Promise<boolean> => ipcRenderer.invoke('npc-log:delete', id),
   saveScratch: (content: string): Promise<string> => ipcRenderer.invoke('scratch:save', content),
   saveCurrency: (currency: Currency): Promise<Currency> => ipcRenderer.invoke('currency:save', currency),
   addLoot: (input: LootInput): Promise<LootItem> => ipcRenderer.invoke('loot:add', input),

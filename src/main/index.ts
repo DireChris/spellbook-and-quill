@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { buildCampaignWordDocument, campaignWordFilename } from './campaign-word-export'
 import {
-  addLoot, closeDatabase, createCampaign, createCharacter, deleteCampaign, deleteCharacter, deleteLoot, deleteNote, deleteNpc, deleteQuest, exportCampaignBackup, getDashboard, getWorkspaceState, importCampaignBackup, initDatabase,
+  addLoot, closeDatabase, createCampaign, createCharacter, deleteCampaign, deleteCharacter, deleteLoot, deleteNote, deleteNpc, deleteNpcLog, deleteQuest, exportCampaignBackup, getDashboard, getWorkspaceState, importCampaignBackup, initDatabase,
   rollAbility, saveAbilities, saveCharacter, saveCurrency, saveLoot, saveNote, saveNpc, saveNpcLog, saveQuest, saveScratch, saveTags, searchAll, getRelatedTags, selectCharacter, setActiveCampaign, updateCampaign,
 } from './database'
 import type { AbilityInput, CampaignBackup, CampaignInput, CharacterStatsInput, Currency, LootInput, NoteInput, NpcInput, NpcLogInput, QuestInput, TagInput } from '../shared/types'
@@ -58,6 +58,7 @@ function registerIpc() {
   handle('npc:save', (input: NpcInput) => saveNpc(input))
   handle('npc:delete', (id: number) => deleteNpc(id))
   handle('npc-log:save', (input: NpcLogInput) => saveNpcLog(input))
+  handle('npc-log:delete', (id: number) => deleteNpcLog(id))
   handle('scratch:save', (content: string) => saveScratch(content))
   handle('currency:save', (input: Currency) => saveCurrency(input))
   handle('loot:add', (input: LootInput) => addLoot(input))

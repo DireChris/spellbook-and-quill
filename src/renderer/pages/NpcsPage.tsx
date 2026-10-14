@@ -10,6 +10,7 @@ interface Props {
   onSaveNpc: (input: NpcInput) => Promise<Npc>
   onDeleteNpc: (id: number) => Promise<void>
   onSaveLog: (input: NpcLogInput) => Promise<void>
+  onDeleteLog: (id: number) => Promise<void>
 }
 
 const newNpc = (): NpcInput => ({ name: '', faction: '', location: '', standing: 'Neutral', notes: '', imageData: '' })
@@ -42,7 +43,7 @@ async function imageToDataUrl(file: File): Promise<string> {
   }
 }
 
-export function NpcsPage({ npcs, logs, openNpcId, onSaveNpc, onDeleteNpc, onSaveLog }: Props) {
+export function NpcsPage({ npcs, logs, openNpcId, onSaveNpc, onDeleteNpc, onSaveLog, onDeleteLog }: Props) {
   const [filter, setFilter] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(npcs[0]?.id ?? null)
   const [draft, setDraft] = useState<NpcInput | null>(null)
@@ -73,7 +74,7 @@ export function NpcsPage({ npcs, logs, openNpcId, onSaveNpc, onDeleteNpc, onSave
     [npcs, filter],
   )
   const selected = npcs.find(npc => npc.id === selectedId) ?? null
-  const selectedLogs = logs.filter(log => (selected && log.npcId === selected.id) || (!log.npcId && selected && log.npcName.toLowerCase() === selected.name.toLowerCase()))
+  const selectedLogs = logs.filter(log => selected && log.npcId === selected.id)
   const update = <K extends keyof NpcInput>(key: K, value: NpcInput[K]) => setDraft(previous => previous ? ({ ...previous, [key]: value }) : previous)
 
   const startEdit = () => {
@@ -96,20 +97,25 @@ export function NpcsPage({ npcs, logs, openNpcId, onSaveNpc, onDeleteNpc, onSave
       setSaving(false)
     }
   }
-  const removeNpc = async () => {
-    if (!draft?.id) return
-    if (!window.confirm(`Delete ${draft.name} from the directory?`)) return
+  const removeNpcRecord = async (npc: { id: number; name: string }) => {
+    if (!window.confirm(`Delete “${npc.name}” and its associated conversation history? This permanently removes the NPC and its conversation entries from this campaign.`)) return
     setSaving(true)
+    setFormMessage(null)
     try {
-      await onDeleteNpc(draft.id)
+      await onDeleteNpc(npc.id)
       setDraft(null)
       setSelectedId(null)
+      clearLogEditor()
       setFormMessage(null)
     } catch (error) {
-      setFormMessage({ text: error instanceof Error ? error.message : 'NPC could not be removed.', error: true })
+      setFormMessage({ text: error instanceof Error ? error.message : 'NPC and conversation history could not be removed.', error: true })
     } finally {
       setSaving(false)
     }
+  }
+  const removeNpc = async () => {
+    if (!draft?.id) return
+    await removeNpcRecord({ id: draft.id, name: draft.name })
   }
   const pickImage = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -136,6 +142,20 @@ export function NpcsPage({ npcs, logs, openNpcId, onSaveNpc, onDeleteNpc, onSave
       clearLogEditor()
     } catch (error) {
       setFormMessage({ text: error instanceof Error ? error.message : 'Conversation entry could not be saved.', error: true })
+    } finally {
+      setSaving(false)
+    }
+  }
+  const removeLog = async (log: NpcLog) => {
+    if (!window.confirm(`Delete the conversation entry “${log.title}”? This cannot be undone.`)) return
+    setSaving(true)
+    setFormMessage(null)
+    try {
+      await onDeleteLog(log.id)
+      if (editingLogId === log.id) clearLogEditor()
+      setFormMessage({ text: 'Conversation entry deleted.' })
+    } catch (error) {
+      setFormMessage({ text: error instanceof Error ? error.message : 'Conversation entry could not be deleted.', error: true })
     } finally {
       setSaving(false)
     }
@@ -204,14 +224,14 @@ export function NpcsPage({ npcs, logs, openNpcId, onSaveNpc, onDeleteNpc, onSave
                 <div className="px-5 pb-5 pt-5">
                   <div className="grid gap-3 sm:grid-cols-3"><InfoTile label="Faction / allegiance" value={selected.faction || 'Unrecorded'} /><InfoTile label="Last known location" value={selected.location || 'Unknown'} /><InfoTile label="Current attitude" value={selected.standing} /></div>
                   <div className="mt-5"><div className="section-eyebrow mb-2">Field notes</div><p className="whitespace-pre-wrap break-words text-xs leading-6 text-white/60">{selected.notes || 'Nothing has been written about this person yet.'}</p></div>
-                  <div className="mt-4 flex justify-end"><button onClick={() => { if (window.confirm(`Remove ${selected.name} from the directory?`)) void onDeleteNpc(selected.id).then(() => setSelectedId(null)) }} className="text-[10px] text-white/25 hover:text-rose-300">Remove from directory</button></div>
+                  <div className="mt-4 flex justify-end"><button type="button" disabled={saving} onClick={() => void removeNpcRecord({ id: selected.id, name: selected.name })} className="text-[10px] text-white/25 hover:text-rose-300 disabled:opacity-40">Remove from directory</button></div>
                 </div>
               </article>
 
               <div className="panel-card overflow-hidden rounded-xl">
                 <div className="flex items-center justify-between border-b border-white/[.06] px-5 py-4"><div><div className="section-eyebrow">Conversation ledger</div><h3 className="mt-1 font-display text-lg text-parchment">NPC logs <span className="text-sm text-white/30">({selectedLogs.length})</span></h3></div><MessageSquareText size={16} className="text-brass-300" /></div>
                 <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_280px]">
-                  <div className="divide-y divide-white/[.05]">{selectedLogs.map(log => <LogRow key={log.id} log={log} onEdit={editLog} />)}{!selectedLogs.length && <div className="px-5 py-8 text-center text-[10px] text-white/30">No encounters recorded with {selected.name} yet.</div>}</div>
+                  <div className="divide-y divide-white/[.05]">{selectedLogs.map(log => <LogRow key={log.id} log={log} onEdit={editLog} onDelete={removeLog} disabled={saving} />)}{!selectedLogs.length && <div className="px-5 py-8 text-center text-[10px] text-white/30">No encounters recorded with {selected.name} yet.</div>}</div>
                   <div className="border-t border-white/[.06] bg-black/15 p-4 lg:border-l lg:border-t-0"><div className="mb-3 flex items-center gap-2"><div className="icon-tile icon-tile-amber"><MessageSquareText size={13} /></div><div className="text-xs font-medium text-parchment">{editingLogId ? 'Edit conversation' : 'Record an encounter'}</div></div><input value={logTitle} onChange={event => setLogTitle(event.target.value)} placeholder="Log title" className="field-input mb-2" /><textarea value={logContent} onChange={event => setLogContent(event.target.value)} rows={5} placeholder="What was said? What felt off?" className="field-input resize-y" /><button disabled={saving || (!logTitle.trim() && !logContent.trim())} onClick={() => void saveLog()} className="primary-button mt-2 w-full justify-center disabled:opacity-40">{editingLogId ? <Save size={12} /> : <Plus size={12} />}{saving ? 'Saving…' : editingLogId ? 'Save changes' : 'Add to log'}</button>{editingLogId && <button type="button" onClick={clearLogEditor} className="secondary-button mt-2 w-full justify-center"><X size={12} /> Cancel edit</button>}</div>
                 </div>
               </div>
@@ -225,4 +245,4 @@ export function NpcsPage({ npcs, logs, openNpcId, onSaveNpc, onDeleteNpc, onSave
 
 function Field({ label, children }: { label: string; children: ReactNode }) { return <div><label className="field-label mb-1.5 block">{label}</label>{children}</div> }
 function InfoTile({ label, value }: { label: string; value: string }) { return <div className="min-w-0 rounded-lg border border-white/[.06] bg-black/15 px-3 py-3"><div className="text-[9px] uppercase tracking-[.12em] text-white/30">{label}</div><div className="mt-1.5 whitespace-normal break-words text-[11px] leading-5 text-parchment">{value}</div></div> }
-function LogRow({ log, onEdit }: { log: NpcLog; onEdit: (log: NpcLog) => void }) { return <div className="flex gap-3 px-5 py-4"><div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[.04] text-white/35"><MessageSquareText size={13} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h4 className="break-words text-xs font-medium text-parchment">{log.title}</h4><span className="text-[9px] text-white/25">{new Date(log.createdAt).toLocaleDateString()}</span><button type="button" onClick={() => onEdit(log)} className="ml-auto inline-flex items-center gap-1 text-[9px] text-white/35 hover:text-brass-300"><Pencil size={10} /> Edit</button></div><p className="mt-1.5 whitespace-pre-wrap break-words text-[10px] leading-5 text-white/45">{log.content || 'No further details.'}</p></div></div> }
+function LogRow({ log, onEdit, onDelete, disabled }: { log: NpcLog; onEdit: (log: NpcLog) => void; onDelete: (log: NpcLog) => void; disabled: boolean }) { return <div className="flex gap-3 px-5 py-4"><div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[.04] text-white/35"><MessageSquareText size={13} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h4 className="break-words text-xs font-medium text-parchment">{log.title}</h4><span className="text-[9px] text-white/25">{new Date(log.createdAt).toLocaleDateString()}</span><button type="button" disabled={disabled} onClick={() => onEdit(log)} className="ml-auto inline-flex items-center gap-1 text-[9px] text-white/35 hover:text-brass-300 disabled:opacity-40"><Pencil size={10} /> Edit</button><button type="button" disabled={disabled} onClick={() => onDelete(log)} aria-label={`Delete conversation entry ${log.title}`} title={`Delete ${log.title}`} className="inline-flex items-center gap-1 text-[9px] text-white/35 hover:text-rose-300 disabled:opacity-40"><Trash2 size={10} /> Delete</button></div><p className="mt-1.5 whitespace-pre-wrap break-words text-[10px] leading-5 text-white/45">{log.content || 'No further details.'}</p></div></div> }

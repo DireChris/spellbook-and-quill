@@ -202,7 +202,7 @@ function schema() {
     -- sql.js is an in-memory SQLite engine; persistence is handled by atomic exports.
     CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY AUTOINCREMENT, campaign_id INTEGER NOT NULL DEFAULT 1, title TEXT NOT NULL DEFAULT 'Untitled note', content TEXT NOT NULL DEFAULT '',
-      kind TEXT NOT NULL DEFAULT 'session' CHECK(kind IN ('session','lore','scratch')), session_number INTEGER,
+      kind TEXT NOT NULL DEFAULT 'session' CHECK(kind IN ('session','lore','scratch')),
       created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS quests (
@@ -265,7 +265,6 @@ function schema() {
   // Migrate existing single-campaign databases in place. Adding nullable/defaulted
   // columns keeps every existing record and its primary key intact.
   ensureColumn('notes', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
-  ensureColumn('notes', 'session_number', 'INTEGER')
   ensureColumn('quests', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('npcs', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('npcs', 'image_data', "TEXT NOT NULL DEFAULT ''")
@@ -372,7 +371,7 @@ function addTags(input: TagInput) {
   tx()
 }
 
-function toNote(row: any): Note { return { id: row.id, title: row.title, content: row.content, kind: row.kind, sessionNumber: row.session_number == null ? null : Number(row.session_number), createdAt: row.created_at, updatedAt: row.updated_at, tags: getTags('note', row.id, row.campaign_id ?? activeCampaignId) } }
+function toNote(row: any): Note { return { id: row.id, title: row.title, content: row.content, kind: row.kind, createdAt: row.created_at, updatedAt: row.updated_at, tags: getTags('note', row.id, row.campaign_id ?? activeCampaignId) } }
 function toQuest(row: any): Quest {
   const objectives = db.prepare('SELECT * FROM objectives WHERE quest_id=? ORDER BY sort_order,id').all(row.id) as any[]
   return { id: row.id, name: row.name, giver: row.giver, status: row.status, rewards: row.rewards, notes: row.notes,
@@ -548,7 +547,7 @@ function snapshotCampaign(campaignId: number): CampaignBackup {
   const rawCampaign=db.prepare('SELECT * FROM campaigns WHERE id=?').get(campaignId) as any
   if (!rawCampaign) throw new Error('Campaign not found')
   const campaign=toCampaign(rawCampaign)
-  const notes=(db.prepare('SELECT * FROM notes WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,title:row.title,content:row.content,kind:row.kind,sessionNumber:row.session_number == null ? null : Number(row.session_number),createdAt:row.created_at,updatedAt:row.updated_at,tags:getTags('note',row.id,campaignId)}))
+  const notes=(db.prepare('SELECT * FROM notes WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,title:row.title,content:row.content,kind:row.kind,tags:getTags('note',row.id,campaignId)}))
   const quests=(db.prepare('SELECT * FROM quests WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,name:row.name,giver:row.giver,status:row.status,rewards:row.rewards,notes:row.notes,tags:getTags('quest',row.id,campaignId),objectives:(db.prepare('SELECT title,done,is_side AS isSide,sort_order AS sortOrder FROM objectives WHERE quest_id=? ORDER BY sort_order,id').all(row.id) as any[]).map(o=>({title:o.title,done:Boolean(o.done),isSide:Boolean(o.isSide),sortOrder:o.sortOrder}))}))
   const npcs=(db.prepare('SELECT * FROM npcs WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,name:row.name,faction:row.faction,location:row.location,standing:row.standing,notes:row.notes,imageData:row.image_data||'',tags:getTags('npc',row.id,campaignId)}))
   const npcLogs=(db.prepare('SELECT * FROM npc_logs WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,npcId:row.npc_id,npcName:row.npc_name,title:row.title,content:row.content,createdAt:row.created_at,tags:getTags('npc_log',row.id,campaignId)}))
@@ -617,8 +616,8 @@ export function importCampaignBackup(value: unknown): Campaign {
     db.prepare('DELETE FROM npcs WHERE campaign_id=?').run(cid)
     db.prepare('DELETE FROM npc_logs WHERE campaign_id=?').run(cid)
     db.prepare('DELETE FROM loot_items WHERE campaign_id=?').run(cid)
-    const insertNote=db.prepare('INSERT INTO notes(campaign_id,title,content,kind,session_number,created_at,updated_at) VALUES(?,?,?,?,?,?,?)')
-    for(const item of (Array.isArray(content.notes)?content.notes:[]) as any[]){const t=now();const sessionNumber = Number.isInteger(item.sessionNumber) && item.sessionNumber > 0 ? item.sessionNumber : null;const id=Number(insertNote.run(cid,str(item.title,180)||'Untitled note',str(item.content),item.kind==='lore'?'lore':item.kind==='scratch'?'scratch':'session',sessionNumber,str(item.createdAt,60)||t,str(item.updatedAt,60)||t).lastInsertRowid);noteMap.set(Number(item.id),id);if(Array.isArray(item.tags))tagTasks.push({entityType:'note',entityId:id,tags:item.tags})}
+    const insertNote=db.prepare('INSERT INTO notes(campaign_id,title,content,kind,created_at,updated_at) VALUES(?,?,?,?,?,?)')
+    for(const item of (Array.isArray(content.notes)?content.notes:[]) as any[]){const t=now();const id=Number(insertNote.run(cid,str(item.title,180)||'Untitled note',str(item.content),item.kind==='lore'?'lore':item.kind==='scratch'?'scratch':'session',t,t).lastInsertRowid);noteMap.set(Number(item.id),id);if(Array.isArray(item.tags))tagTasks.push({entityType:'note',entityId:id,tags:item.tags})}
     const insertQuest=db.prepare('INSERT INTO quests(campaign_id,name,giver,status,rewards,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
     const insertObjective=db.prepare('INSERT INTO objectives(quest_id,title,done,is_side,sort_order) VALUES(?,?,?,?,?)')
     for(const item of (Array.isArray(content.quests)?content.quests:[]) as any[]){const t=now();const id=Number(insertQuest.run(cid,str(item.name,180)||'Untitled quest',str(item.giver,180),allowedStatus.has(item.status)?item.status:'In Progress',str(item.rewards),str(item.notes),t,t).lastInsertRowid);questMap.set(Number(item.id),id);for(const [index,obj] of (Array.isArray(item.objectives)?item.objectives:[]).entries())insertObjective.run(id,str(obj.title,300),obj.done?1:0,obj.isSide?1:0,index);if(Array.isArray(item.tags))tagTasks.push({entityType:'quest',entityId:id,tags:item.tags})}
@@ -689,13 +688,9 @@ export function saveNote(input: NoteInput): Note {
   const title = str(input.title, 180).trim() || 'Untitled note'
   const content = str(input.content)
   const kind = input.kind === 'lore' ? 'lore' : input.kind === 'scratch' ? 'scratch' : 'session'
-  const rawSessionNumber = input.sessionNumber
-  const safeSessionNumber = rawSessionNumber == null || !Number.isFinite(Number(rawSessionNumber)) || Number(rawSessionNumber) < 1
-    ? null
-    : Math.floor(Number(rawSessionNumber))
   const t = now(); let id = input.id
-  if (id && db.prepare('SELECT id FROM notes WHERE id=? AND campaign_id=?').get(id,activeCampaignId)) db.prepare('UPDATE notes SET title=?,content=?,kind=?,session_number=?,updated_at=? WHERE id=? AND campaign_id=?').run(title,content,kind,safeSessionNumber,t,id,activeCampaignId)
-  else id = Number(db.prepare('INSERT INTO notes(campaign_id,title,content,kind,session_number,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(activeCampaignId,title,content,kind,safeSessionNumber,t,t).lastInsertRowid)
+  if (id && db.prepare('SELECT id FROM notes WHERE id=? AND campaign_id=?').get(id,activeCampaignId)) db.prepare('UPDATE notes SET title=?,content=?,kind=?,updated_at=? WHERE id=? AND campaign_id=?').run(title,content,kind,t,id,activeCampaignId)
+  else id = Number(db.prepare('INSERT INTO notes(campaign_id,title,content,kind,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(activeCampaignId,title,content,kind,t,t).lastInsertRowid)
   return toNote(db.prepare('SELECT * FROM notes WHERE id=? AND campaign_id=?').get(id,activeCampaignId))
 }
 export function deleteNote(id: number) { const safe=num(id); db.prepare("DELETE FROM taggings WHERE entity_type='note' AND entity_id=?").run(safe); db.prepare('DELETE FROM notes WHERE id=? AND campaign_id=?').run(safe,activeCampaignId); return true }
@@ -737,7 +732,44 @@ export function saveNpc(input: NpcInput): Npc {
   else id=Number(db.prepare('INSERT INTO npcs(campaign_id,name,faction,location,standing,notes,image_data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)').run(cid,name,faction,location,standing,notes,imageData,t,t).lastInsertRowid)
   return toNpc(db.prepare('SELECT * FROM npcs WHERE id=? AND campaign_id=?').get(id,cid))
 }
-export function deleteNpc(id: number) { const safe=num(id); db.prepare("DELETE FROM taggings WHERE entity_type='npc' AND entity_id=?").run(safe); db.prepare('DELETE FROM npcs WHERE id=? AND campaign_id=?').run(safe,activeCampaignId); return true }
+export function deleteNpc(id: number): boolean {
+  const safeId = Math.trunc(num(id, -1))
+  const campaignId = activeCampaignId
+  const tx = db.transaction(() => {
+    const npc = db.prepare('SELECT id,name FROM npcs WHERE id=? AND campaign_id=?').get(safeId, campaignId) as { id: number; name: string } | undefined
+    if (!npc) throw new Error('NPC not found in the active campaign')
+
+    // Older records may have lost npc_id during a previous deletion. Only treat
+    // an unlinked log as belonging to this NPC when its name identifies exactly
+    // one NPC in this campaign, matching the legacy UI association rule.
+    const legacyLogs = db.prepare(`SELECT id FROM npc_logs
+      WHERE campaign_id=? AND npc_id IS NULL AND npc_name=? COLLATE NOCASE
+      AND (SELECT COUNT(*) FROM npcs n WHERE n.campaign_id=? AND n.name=? COLLATE NOCASE)=1`)
+      .all(campaignId, npc.name, campaignId, npc.name) as Array<{ id: number }>
+    const linkedLogs = db.prepare('SELECT id FROM npc_logs WHERE campaign_id=? AND npc_id=?').all(campaignId, safeId) as Array<{ id: number }>
+    for (const log of [...linkedLogs, ...legacyLogs]) {
+      db.prepare("DELETE FROM taggings WHERE entity_type='npc_log' AND entity_id=?").run(log.id)
+      db.prepare('DELETE FROM npc_logs WHERE id=? AND campaign_id=?').run(log.id, campaignId)
+    }
+    db.prepare("DELETE FROM taggings WHERE entity_type='npc' AND entity_id=?").run(safeId)
+    db.prepare('DELETE FROM npcs WHERE id=? AND campaign_id=?').run(safeId, campaignId)
+  })
+  tx()
+  return true
+}
+
+export function deleteNpcLog(id: number): boolean {
+  const safeId = Math.trunc(num(id, -1))
+  const campaignId = activeCampaignId
+  const tx = db.transaction(() => {
+    const log = db.prepare('SELECT id FROM npc_logs WHERE id=? AND campaign_id=?').get(safeId, campaignId)
+    if (!log) throw new Error('Conversation entry not found in the active campaign')
+    db.prepare("DELETE FROM taggings WHERE entity_type='npc_log' AND entity_id=?").run(safeId)
+    db.prepare('DELETE FROM npc_logs WHERE id=? AND campaign_id=?').run(safeId, campaignId)
+  })
+  tx()
+  return true
+}
 export function saveNpcLog(input: NpcLogInput): NpcLog {
   const title=str(input.title,180).trim()||'Untitled log'
   const content=str(input.content)
@@ -829,7 +861,7 @@ export function searchAll(query: string, allCampaigns = false): SearchResult[] {
     const scratchRows = db.prepare(`SELECT -s.campaign_id AS id,s.content AS body,s.updated_at AS ts,s.campaign_id,c.name AS campaign_name FROM campaign_scratch s JOIN campaigns c ON c.id=s.campaign_id WHERE s.content LIKE ? ESCAPE '\\'${allCampaigns?'':' AND s.campaign_id=?'}`).all(...(allCampaigns?[pattern]:[pattern,activeCampaignId])) as any[]
     for (const r of scratchRows) push({ id:r.id,title:'Scratch Pad',excerpt:searchSnippet(r.body,q),updatedAt:r.ts,matchTerm:q,matchKind:'text' },'scratch',r.campaign_id,r.campaign_name)
     append(`SELECT x.id,x.name AS title,x.notes AS body,x.updated_at AS ts,x.faction AS meta,x.campaign_id,c.name AS campaign_name FROM npcs x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.name LIKE ? ESCAPE '\\' OR x.faction LIKE ? ESCAPE '\\' OR x.location LIKE ? ESCAPE '\\' OR x.notes LIKE ? ESCAPE '\\')${scope}`, params(pattern,pattern,pattern,pattern), 'npc')
-    append(`SELECT x.id,x.title,x.content AS body,x.created_at AS ts,x.npc_name AS meta,x.campaign_id,c.name AS campaign_name FROM npc_logs x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.title LIKE ? ESCAPE '\\' OR x.content LIKE ? ESCAPE '\\' OR x.npc_name LIKE ? ESCAPE '\\')${scope}`, params(pattern,pattern,pattern), 'npc_log')
+    append(`SELECT x.id,x.title,x.content AS body,x.created_at AS ts,x.npc_name AS meta,x.campaign_id,c.name AS campaign_name FROM npc_logs x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.title LIKE ? ESCAPE '\\' OR x.content LIKE ? ESCAPE '\\' OR x.npc_name LIKE ? ESCAPE '\\') AND EXISTS(SELECT 1 FROM npcs n WHERE n.id=x.npc_id AND n.campaign_id=x.campaign_id)${scope}`, params(pattern,pattern,pattern), 'npc_log')
     append(`SELECT x.id,x.name AS title,x.description AS body,x.created_at AS ts,x.kind AS meta,x.campaign_id,c.name AS campaign_name FROM loot_items x JOIN campaigns c ON c.id=x.campaign_id WHERE (x.name LIKE ? ESCAPE '\\' OR x.description LIKE ? ESCAPE '\\')${scope}`, params(pattern,pattern), 'loot')
   }
   const taggedSql = tagQuery
@@ -857,7 +889,9 @@ export function getRelatedTags(tagName: string, allCampaigns = false): Array<{na
     FROM taggings source JOIN tags target ON target.id=source.tag_id
     JOIN taggings related_link ON related_link.entity_type=source.entity_type AND related_link.entity_id=source.entity_id AND related_link.tag_id<>source.tag_id
     JOIN tags related ON related.id=related_link.tag_id
-    JOIN (SELECT 'note' AS entity_type,id,campaign_id FROM notes UNION ALL SELECT 'quest',id,campaign_id FROM quests UNION ALL SELECT 'npc',id,campaign_id FROM npcs UNION ALL SELECT 'npc_log',id,campaign_id FROM npc_logs UNION ALL SELECT 'loot',id,campaign_id FROM loot_items UNION ALL SELECT 'scratch',-campaign_id,campaign_id FROM campaign_scratch) e ON e.entity_type=source.entity_type AND e.id=source.entity_id
+    JOIN (SELECT 'note' AS entity_type,id,campaign_id FROM notes UNION ALL SELECT 'quest',id,campaign_id FROM quests UNION ALL SELECT 'npc',id,campaign_id FROM npcs UNION ALL
+      SELECT 'npc_log',x.id,x.campaign_id FROM npc_logs x WHERE EXISTS(SELECT 1 FROM npcs n WHERE n.id=x.npc_id AND n.campaign_id=x.campaign_id)
+      UNION ALL SELECT 'loot',id,campaign_id FROM loot_items UNION ALL SELECT 'scratch',-campaign_id,campaign_id FROM campaign_scratch) e ON e.entity_type=source.entity_type AND e.id=source.entity_id
     WHERE target.name=? COLLATE NOCASE${campaignClause} GROUP BY related.id ORDER BY count DESC, related.name COLLATE NOCASE LIMIT 12`).all(name, ...campaignParams) as Array<{name:string;count:number}>
   return rows
 }
@@ -877,7 +911,7 @@ function lookupSearchEntity(type:EntityType,id:number,campaignId?:number):Search
   if(type==='note'){r=select(`SELECT x.id,x.title,x.content AS body,x.updated_at AS ts FROM notes x JOIN campaigns c ON c.id=x.campaign_id WHERE x.id=?${filter}`);if(r)return {entityType:type,id,title:r.title,excerpt:plainText(r.body).slice(0,180),updatedAt:r.ts,tags:getTags(type,id,r.campaign_id),campaignId:r.campaign_id,campaignName:r.campaign_name}}
   if(type==='quest'){r=select(`SELECT x.id,x.name AS title,x.notes AS body,x.updated_at AS ts,x.status AS meta FROM quests x JOIN campaigns c ON c.id=x.campaign_id WHERE x.id=?${filter}`);if(r)return {entityType:type,id,title:r.title,excerpt:plainText(r.body).slice(0,180),updatedAt:r.ts,tags:getTags(type,id,r.campaign_id),meta:r.meta,campaignId:r.campaign_id,campaignName:r.campaign_name}}
   if(type==='npc'){r=select(`SELECT x.id,x.name AS title,x.notes AS body,x.updated_at AS ts,x.faction AS meta FROM npcs x JOIN campaigns c ON c.id=x.campaign_id WHERE x.id=?${filter}`);if(r)return {entityType:type,id,title:r.title,excerpt:plainText(r.body).slice(0,180),updatedAt:r.ts,tags:getTags(type,id,r.campaign_id),meta:r.meta,campaignId:r.campaign_id,campaignName:r.campaign_name}}
-  if(type==='npc_log'){r=select(`SELECT x.id,x.title,x.content AS body,x.created_at AS ts,x.npc_name AS meta FROM npc_logs x JOIN campaigns c ON c.id=x.campaign_id WHERE x.id=?${filter}`);if(r)return {entityType:type,id,title:r.title,excerpt:plainText(r.body).slice(0,180),updatedAt:r.ts,tags:getTags(type,id,r.campaign_id),meta:r.meta,campaignId:r.campaign_id,campaignName:r.campaign_name}}
+  if(type==='npc_log'){r=select(`SELECT x.id,x.title,x.content AS body,x.created_at AS ts,x.npc_name AS meta FROM npc_logs x JOIN campaigns c ON c.id=x.campaign_id WHERE x.id=? AND EXISTS(SELECT 1 FROM npcs n WHERE n.id=x.npc_id AND n.campaign_id=x.campaign_id)${filter}`);if(r)return {entityType:type,id,title:r.title,excerpt:plainText(r.body).slice(0,180),updatedAt:r.ts,tags:getTags(type,id,r.campaign_id),meta:r.meta,campaignId:r.campaign_id,campaignName:r.campaign_name}}
   if(type==='loot'){r=select(`SELECT x.id,x.name AS title,x.description AS body,x.created_at AS ts,x.kind AS meta FROM loot_items x JOIN campaigns c ON c.id=x.campaign_id WHERE x.id=?${filter}`);if(r)return {entityType:type,id,title:r.title,excerpt:plainText(r.body).slice(0,180),updatedAt:r.ts,tags:getTags(type,id,r.campaign_id),meta:r.meta,campaignId:r.campaign_id,campaignName:r.campaign_name}}
   return null
 }

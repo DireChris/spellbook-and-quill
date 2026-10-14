@@ -24,6 +24,7 @@ declare global {
       saveNpc(input: NpcInput): Promise<Npc>
       deleteNpc(id: number): Promise<boolean>
       saveNpcLog(input: NpcLogInput): Promise<NpcLog>
+      deleteNpcLog(id: number): Promise<boolean>
       saveScratch(content: string): Promise<string>
       saveCurrency(currency: Currency): Promise<Currency>
       addLoot(input: LootInput): Promise<LootItem>

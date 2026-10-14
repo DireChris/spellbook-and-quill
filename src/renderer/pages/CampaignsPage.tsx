@@ -92,7 +92,7 @@ export function CampaignsPage({ campaigns, activeCampaignId, onSwitch, onCreate,
   const deleteCampaign = async (campaign: Campaign) => {
     const message = campaigns.length <= 1
       ? 'You need at least one campaign. Create another campaign before deleting this one.'
-      : `Delete “${campaign.name}”? The app will create a .sqbackup file in its local backups folder before removing this campaign. This action cannot be undone in the app.`
+      : `Delete “${campaign.name}” and all of its campaign data, including notes, quests, NPCs and their conversation history, characters, and vault items? The app will create a .sqbackup file in its local backups folder first. This action cannot be undone in the app.`
     if (campaigns.length <= 1) { setMessage({ text: message, error: true }); return }
     if (!window.confirm(message)) return
     setBusy(true)
