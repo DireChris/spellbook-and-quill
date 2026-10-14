@@ -9,14 +9,11 @@ on:
     types:
       - published
   workflow_dispatch:
-<<<<<<< HEAD
     inputs:
       tag:
         description: 'Release tag to attach installer to (e.g. v1.2.1)'
         required: true
         default: 'v1.2.1'
-=======
->>>>>>> e9f6aeafffd6a9310ebed11855ae9c87178caf85
 
 permissions:
   contents: write
@@ -33,11 +30,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-<<<<<<< HEAD
           node-version: 22
-=======
-          node-version: 20
->>>>>>> e9f6aeafffd6a9310ebed11855ae9c87178caf85
 
       - name: Install dependencies
         run: npm install
