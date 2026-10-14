@@ -36,6 +36,5 @@ jobs:
       - name: Upload installer to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*.exe
+          files: "release/*.exe"
           fail_on_unmatched_files: true
-```
