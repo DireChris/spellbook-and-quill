@@ -22,8 +22,7 @@ A local-first Dungeons & Dragons campaign companion for Windows, macOS, and Linu
 
 ## Quick start
 
-Lastest Version will have .exe installer available to download for Windows.
-https://github.com/DireChris/spellbook-and-quill/releases/latest
+Download the latest Windows installer from the [GitHub Releases page](https://github.com/DireChris/spellbook-and-quill/releases/latest).
 
 ## Quick start build
 
@@ -123,7 +122,7 @@ The SQLite file is `spellbook-and-quill.sqlite` inside Electron's `app.getPath('
 - **Choose a campaign:** use the campaign selector at the top of the left sidebar. The last-used campaign opens automatically at startup. Use **Manage campaigns** to create, edit, switch, export, restore, or delete campaigns.
 - **Create notes:** open **Session notes**, create a note, then type in the editor. Formatting controls are above the editor; use `Ctrl+T` to focus the note tag field, or type `[` in the editor to get bracketed tag suggestions such as `[magic weapon]`. Notes autosave locally.
 - **Track quests:** use **Quest log** to create quests and objectives. Mark objectives complete from the quest tracker while playing.
-- **Maintain NPC records:** open **NPC directory** to create/edit profiles, add portraits, and maintain a conversation ledger.
+- **Maintain NPC records:** open **NPC directory** to create/edit profiles, add portraits, and maintain a conversation ledger. Edit or delete individual conversation entries; deleting an NPC also removes its associated conversation history.
 - **Track party property:** open **Party vault** for currency and loot. Expand an item to read its full description and edit it.
 - **Maintain characters:** open **Character sheets** to edit stats, background, personality details, and ability/attack/spell cards. Use JSON export/import to move a character between campaigns.
 - **Export a Word archive:** from the active campaign's **Overview** page, click **Export Word**. Choose the destination and filename in the Save dialog. The `.docx` is designed for reading, printing, sharing, or keeping an extra archive. It does not replace a `.sqbackup`.
@@ -190,6 +189,7 @@ Each campaign has separate records and character sheets. Character JSON export/i
 - Campaign artwork is converted to a smaller JPEG and displayed through local image elements, then stored in the local campaign record. New artwork is resized to at most 1200×750 and limited to about 3 MB after conversion.
 - NPC profile banner decoration no longer intercepts pointer clicks; the profile editor is kept above the banner layer and the page has more top breathing room.
 - NPC conversation-ledger entries can be selected and edited in place. Updates preserve the original entry creation date and are restricted to the active campaign.
+- Individual NPC conversation entries can be deleted. Deleting an NPC removes its linked conversation history and associated tags as part of the same database transaction; orphaned legacy conversation entries are excluded from global search.
 - Party-vault rows expand to show the complete, wrapped item description and totals. Loot properties, quantity, type and value can be updated without deleting and re-adding the item.
 ### NPC portraits
 
