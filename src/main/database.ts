@@ -202,7 +202,7 @@ function schema() {
     -- sql.js is an in-memory SQLite engine; persistence is handled by atomic exports.
     CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY AUTOINCREMENT, campaign_id INTEGER NOT NULL DEFAULT 1, title TEXT NOT NULL DEFAULT 'Untitled note', content TEXT NOT NULL DEFAULT '',
-      kind TEXT NOT NULL DEFAULT 'session' CHECK(kind IN ('session','lore','scratch')),
+      kind TEXT NOT NULL DEFAULT 'session' CHECK(kind IN ('session','lore','scratch')), session_number INTEGER,
       created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS quests (
@@ -265,6 +265,7 @@ function schema() {
   // Migrate existing single-campaign databases in place. Adding nullable/defaulted
   // columns keeps every existing record and its primary key intact.
   ensureColumn('notes', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
+  ensureColumn('notes', 'session_number', 'INTEGER')
   ensureColumn('quests', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('npcs', 'campaign_id', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('npcs', 'image_data', "TEXT NOT NULL DEFAULT ''")
@@ -371,7 +372,7 @@ function addTags(input: TagInput) {
   tx()
 }
 
-function toNote(row: any): Note { return { id: row.id, title: row.title, content: row.content, kind: row.kind, createdAt: row.created_at, updatedAt: row.updated_at, tags: getTags('note', row.id, row.campaign_id ?? activeCampaignId) } }
+function toNote(row: any): Note { return { id: row.id, title: row.title, content: row.content, kind: row.kind, sessionNumber: row.session_number == null ? null : Number(row.session_number), createdAt: row.created_at, updatedAt: row.updated_at, tags: getTags('note', row.id, row.campaign_id ?? activeCampaignId) } }
 function toQuest(row: any): Quest {
   const objectives = db.prepare('SELECT * FROM objectives WHERE quest_id=? ORDER BY sort_order,id').all(row.id) as any[]
   return { id: row.id, name: row.name, giver: row.giver, status: row.status, rewards: row.rewards, notes: row.notes,
@@ -547,7 +548,7 @@ function snapshotCampaign(campaignId: number): CampaignBackup {
   const rawCampaign=db.prepare('SELECT * FROM campaigns WHERE id=?').get(campaignId) as any
   if (!rawCampaign) throw new Error('Campaign not found')
   const campaign=toCampaign(rawCampaign)
-  const notes=(db.prepare('SELECT * FROM notes WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,title:row.title,content:row.content,kind:row.kind,tags:getTags('note',row.id,campaignId)}))
+  const notes=(db.prepare('SELECT * FROM notes WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,title:row.title,content:row.content,kind:row.kind,sessionNumber:row.session_number == null ? null : Number(row.session_number),createdAt:row.created_at,updatedAt:row.updated_at,tags:getTags('note',row.id,campaignId)}))
   const quests=(db.prepare('SELECT * FROM quests WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,name:row.name,giver:row.giver,status:row.status,rewards:row.rewards,notes:row.notes,tags:getTags('quest',row.id,campaignId),objectives:(db.prepare('SELECT title,done,is_side AS isSide,sort_order AS sortOrder FROM objectives WHERE quest_id=? ORDER BY sort_order,id').all(row.id) as any[]).map(o=>({title:o.title,done:Boolean(o.done),isSide:Boolean(o.isSide),sortOrder:o.sortOrder}))}))
   const npcs=(db.prepare('SELECT * FROM npcs WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,name:row.name,faction:row.faction,location:row.location,standing:row.standing,notes:row.notes,imageData:row.image_data||'',tags:getTags('npc',row.id,campaignId)}))
   const npcLogs=(db.prepare('SELECT * FROM npc_logs WHERE campaign_id=? ORDER BY id').all(campaignId) as any[]).map(row=>({id:row.id,npcId:row.npc_id,npcName:row.npc_name,title:row.title,content:row.content,createdAt:row.created_at,tags:getTags('npc_log',row.id,campaignId)}))
@@ -616,8 +617,8 @@ export function importCampaignBackup(value: unknown): Campaign {
     db.prepare('DELETE FROM npcs WHERE campaign_id=?').run(cid)
     db.prepare('DELETE FROM npc_logs WHERE campaign_id=?').run(cid)
     db.prepare('DELETE FROM loot_items WHERE campaign_id=?').run(cid)
-    const insertNote=db.prepare('INSERT INTO notes(campaign_id,title,content,kind,created_at,updated_at) VALUES(?,?,?,?,?,?)')
-    for(const item of (Array.isArray(content.notes)?content.notes:[]) as any[]){const t=now();const id=Number(insertNote.run(cid,str(item.title,180)||'Untitled note',str(item.content),item.kind==='lore'?'lore':item.kind==='scratch'?'scratch':'session',t,t).lastInsertRowid);noteMap.set(Number(item.id),id);if(Array.isArray(item.tags))tagTasks.push({entityType:'note',entityId:id,tags:item.tags})}
+    const insertNote=db.prepare('INSERT INTO notes(campaign_id,title,content,kind,session_number,created_at,updated_at) VALUES(?,?,?,?,?,?,?)')
+    for(const item of (Array.isArray(content.notes)?content.notes:[]) as any[]){const t=now();const sessionNumber=Number.isInteger(item.sessionNumber)&&item.sessionNumber>0?item.sessionNumber:null;const id=Number(insertNote.run(cid,str(item.title,180)||'Untitled note',str(item.content),item.kind==='lore'?'lore':item.kind==='scratch'?'scratch':'session',sessionNumber,str(item.createdAt,60)||t,str(item.updatedAt,60)||t).lastInsertRowid);noteMap.set(Number(item.id),id);if(Array.isArray(item.tags))tagTasks.push({entityType:'note',entityId:id,tags:item.tags})}
     const insertQuest=db.prepare('INSERT INTO quests(campaign_id,name,giver,status,rewards,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
     const insertObjective=db.prepare('INSERT INTO objectives(quest_id,title,done,is_side,sort_order) VALUES(?,?,?,?,?)')
     for(const item of (Array.isArray(content.quests)?content.quests:[]) as any[]){const t=now();const id=Number(insertQuest.run(cid,str(item.name,180)||'Untitled quest',str(item.giver,180),allowedStatus.has(item.status)?item.status:'In Progress',str(item.rewards),str(item.notes),t,t).lastInsertRowid);questMap.set(Number(item.id),id);for(const [index,obj] of (Array.isArray(item.objectives)?item.objectives:[]).entries())insertObjective.run(id,str(obj.title,300),obj.done?1:0,obj.isSide?1:0,index);if(Array.isArray(item.tags))tagTasks.push({entityType:'quest',entityId:id,tags:item.tags})}
@@ -688,9 +689,11 @@ export function saveNote(input: NoteInput): Note {
   const title = str(input.title, 180).trim() || 'Untitled note'
   const content = str(input.content)
   const kind = input.kind === 'lore' ? 'lore' : input.kind === 'scratch' ? 'scratch' : 'session'
+  const rawSessionNumber = input.sessionNumber
+  const sessionNumber = rawSessionNumber == null || !Number.isFinite(Number(rawSessionNumber)) || Number(rawSessionNumber) < 1 ? null : Math.floor(Number(rawSessionNumber))
   const t = now(); let id = input.id
-  if (id && db.prepare('SELECT id FROM notes WHERE id=? AND campaign_id=?').get(id,activeCampaignId)) db.prepare('UPDATE notes SET title=?,content=?,kind=?,updated_at=? WHERE id=? AND campaign_id=?').run(title,content,kind,t,id,activeCampaignId)
-  else id = Number(db.prepare('INSERT INTO notes(campaign_id,title,content,kind,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(activeCampaignId,title,content,kind,t,t).lastInsertRowid)
+  if (id && db.prepare('SELECT id FROM notes WHERE id=? AND campaign_id=?').get(id,activeCampaignId)) db.prepare('UPDATE notes SET title=?,content=?,kind=?,session_number=?,updated_at=? WHERE id=? AND campaign_id=?').run(title,content,kind,sessionNumber,t,id,activeCampaignId)
+  else id = Number(db.prepare('INSERT INTO notes(campaign_id,title,content,kind,session_number,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(activeCampaignId,title,content,kind,sessionNumber,t,t).lastInsertRowid)
   return toNote(db.prepare('SELECT * FROM notes WHERE id=? AND campaign_id=?').get(id,activeCampaignId))
 }
 export function deleteNote(id: number) { const safe=num(id); db.prepare("DELETE FROM taggings WHERE entity_type='note' AND entity_id=?").run(safe); db.prepare('DELETE FROM notes WHERE id=? AND campaign_id=?').run(safe,activeCampaignId); return true }
